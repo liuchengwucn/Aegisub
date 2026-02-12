@@ -99,6 +99,7 @@ std::string WhisperService::CallWhisperAPI(std::string const& wav_path) {
 	std::string base_url = OPT_GET("Automation/Whisper/Base URL")->GetString();
 	std::string api_key = OPT_GET("Automation/Whisper/API Key")->GetString();
 	std::string model = OPT_GET("Automation/Whisper/Model")->GetString();
+	std::string language = OPT_GET("Automation/Whisper/Language")->GetString();
 
 	if (api_key.empty() || base_url.empty()) return "";
 
@@ -121,6 +122,12 @@ std::string WhisperService::CallWhisperAPI(std::string const& wav_path) {
 	part = curl_mime_addpart(mime);
 	curl_mime_name(part, "response_format");
 	curl_mime_data(part, "text", CURL_ZERO_TERMINATED);
+
+	if (!language.empty() && language != "Auto") {
+		part = curl_mime_addpart(mime);
+		curl_mime_name(part, "language");
+		curl_mime_data(part, language.c_str(), CURL_ZERO_TERMINATED);
+	}
 
 	struct curl_slist *headers = nullptr;
 	headers = curl_slist_append(headers, ("Authorization: Bearer " + api_key).c_str());

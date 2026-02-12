@@ -369,6 +369,11 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	// Whisper Model (plain text input)
 	p->OptionAdd(ai, _("Whisper Model"), "Automation/Whisper/Model");
 
+	// Whisper Language
+	wxString lang_choices[] = { "Auto", "zh", "en", "ja" };
+	wxArrayString lang_arr(4, lang_choices);
+	p->OptionChoice(ai, _("Whisper Language"), lang_arr, "Automation/Whisper/Language");
+
 	// Whisper Lookahead Lines
 	p->OptionAdd(ai, _("Whisper Lookahead Lines"), "Automation/Whisper/Lookahead Lines", 0, 10);
 
