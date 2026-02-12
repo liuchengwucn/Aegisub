@@ -28,6 +28,7 @@
 #include "subs_controller.h"
 #include "text_selection_controller.h"
 #include "video_controller.h"
+#include "whisper_service.h"
 
 #include <libaegisub/path.h>
 
@@ -44,6 +45,7 @@ Context::Context()
 , initialLineState(std::make_unique<InitialLineState>(this))
 , search(std::make_unique<SearchReplaceEngine>(this))
 , path(std::make_unique<Path>(*config::path))
+, whisperService(std::make_unique<WhisperService>(this))
 , dialog(std::make_unique<DialogManager>())
 {
 	subsController->SetSelectionController(selectionController.get());
