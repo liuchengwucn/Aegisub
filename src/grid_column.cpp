@@ -22,6 +22,7 @@
 #include "include/aegisub/context.h"
 #include "options.h"
 #include "video_controller.h"
+#include "whisper_service.h"
 
 #include <libaegisub/character_count.h>
 
@@ -401,6 +402,49 @@ public:
 	}
 };
 
+struct GridColumnWhisper final : GridColumn {
+	COLUMN_HEADER(_("Whisper"))
+	COLUMN_DESCRIPTION(_("Whisper Transcription"))
+	bool Centered() const override { return false; }
+
+	wxString Value(const AssDialogue *d, const agi::Context *c) const override {
+		if (c->whisperService) {
+			std::string text = c->whisperService->GetCachedText(d);
+			if (!text.empty())
+				return to_wx(text);
+		}
+
+		// Fallback: check extradata directly
+		auto ids = d->ExtradataIds.get();
+		if (!ids.empty()) {
+			auto entries = c->ass->GetExtradata(ids);
+			for (auto const& e : entries) {
+				if (e.key == "whisper" && !e.value.empty())
+					return to_wx(e.value);
+			}
+		}
+		return wxS("");
+	}
+
+	void Paint(wxDC &dc, int x, int y, const AssDialogue *d, const agi::Context *c) const override {
+		wxString str = Value(d, c);
+		if (str.empty()) return;
+		dc.SetClippingRegion(x, y, width, dc.GetCharHeight() + 4);
+		dc.DrawText(str, x + 4, y + 2);
+		dc.DestroyClippingRegion();
+	}
+
+	int Width(const agi::Context *c, WidthHelper &helper) const override {
+		int w = 0;
+		for (auto const& line : c->ass->Events) {
+			wxString val = Value(&line, c);
+			if (!val.empty())
+				w = std::max(w, std::min(helper(val), 300));
+		}
+		return w;
+	}
+};
+
 template<typename T>
 std::unique_ptr<GridColumn> make() {
 	return std::unique_ptr<GridColumn>(new T);
@@ -421,6 +465,7 @@ std::vector<std::unique_ptr<GridColumn>> GetGridColumns() {
 	ret.push_back(make<GridColumnMarginLeft>());
 	ret.push_back(make<GridColumnMarginRight>());
 	ret.push_back(make<GridColumnMarginVert>());
+	ret.push_back(make<GridColumnWhisper>());
 	ret.push_back(make<GridColumnText>());
 	return ret;
 }
