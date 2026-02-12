@@ -45,6 +45,7 @@
 
 #include <unordered_set>
 
+#include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/combobox.h>
 #include <wx/dc.h>
@@ -56,6 +57,7 @@
 #include <wx/spinctrl.h>
 #include <wx/statbox.h>
 #include <wx/stattext.h>
+#include <wx/textctrl.h>
 #include <wx/treebook.h>
 
 namespace {
@@ -354,6 +356,18 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	const wxString ar_arr[4] = { _("No scripts"), _("Subtitle-local scripts"), _("Global autoload scripts"), _("All scripts") };
 	wxArrayString ar_choice(4, ar_arr);
 	p->OptionChoice(general, _("Autoreload on Export"), ar_choice, "Automation/Autoreload Mode");
+
+	// AI Settings section
+	auto ai = p->PageSizer(_("AI"));
+
+	// Whisper API Base URL
+	p->OptionAdd(ai, _("Whisper API Base URL"), "Automation/Whisper/Base URL");
+
+	// Whisper API Key (plain text)
+	p->OptionAdd(ai, _("Whisper API Key"), "Automation/Whisper/API Key");
+
+	// Whisper Model (plain text input)
+	p->OptionAdd(ai, _("Whisper Model"), "Automation/Whisper/Model");
 
 	p->SetSizerAndFit(p->sizer);
 }
