@@ -360,6 +360,10 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	// AI Settings section
 	auto ai = p->PageSizer(_("AI"));
 
+	// Whisper Enabled
+	p->OptionAdd(ai, _("Enable Whisper"), "Automation/Whisper/Enabled");
+	p->CellSkip(ai);
+
 	// Whisper API Base URL
 	p->OptionAdd(ai, _("Whisper API Base URL"), "Automation/Whisper/Base URL");
 

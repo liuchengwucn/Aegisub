@@ -99,6 +99,7 @@
 		"Whisper" : {
 			"API Key" : "",
 			"Base URL" : "https://api.openai.com/v1",
+			"Enabled" : true,
 			"Language" : "Auto",
 			"Lookahead Lines" : 2,
 			"Model" : "whisper-1"

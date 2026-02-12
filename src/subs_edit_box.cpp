@@ -252,6 +252,8 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 		context->selectionController->AddSelectionListener(&SubsEditBox::OnSelectedSetChanged, this),
 		context->initialLineState->AddChangeListener(&SubsEditBox::OnLineInitialTextChanged, this),
 		context->project->AddAudioProviderListener([this](agi::AudioProvider *) { UpdateWhisperVisibility(); }),
+		OPT_SUB("Automation/Whisper/Enabled", [this](agi::OptionValue const&) { UpdateWhisperVisibility(); }),
+		OPT_SUB("Automation/Whisper/API Key", [this](agi::OptionValue const&) { UpdateWhisperVisibility(); }),
 	 });
 
 	context->textSelectionController->SetControl(edit_ctrl);
@@ -665,7 +667,8 @@ void SubsEditBox::UpdateCharacterCount(std::string const& text) {
 }
 
 void SubsEditBox::UpdateWhisperVisibility() {
-	bool should_show = c->project->AudioProvider() &&
+	bool should_show = OPT_GET("Automation/Whisper/Enabled")->GetBool() &&
+		c->project->AudioProvider() &&
 		!OPT_GET("Automation/Whisper/API Key")->GetString().empty();
 
 	if (should_show && !edit_splitter->IsSplit()) {
