@@ -50,6 +50,7 @@ class wxCheckBox;
 class wxRadioButton;
 class wxSizer;
 class wxSpinCtrl;
+class wxSplitterWindow;
 class wxStyledTextCtrl;
 class wxStyledTextEvent;
 class wxTextCtrl;
@@ -196,8 +197,15 @@ class SubsEditBox final : public wxPanel {
 
 	void SetDurationField();
 
+	/// Update whisper text display for the current line
+	void UpdateWhisperText();
+	/// Show/hide whisper panel based on audio and API key availability
+	void UpdateWhisperVisibility();
+
 	SubsTextEditCtrl *edit_ctrl;
 	wxTextCtrl *secondary_editor;
+	wxTextCtrl *whisper_editor;
+	wxSplitterWindow *edit_splitter;
 
 public:
 	/// @brief Constructor

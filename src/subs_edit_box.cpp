@@ -53,6 +53,7 @@
 #include "timeedit_ctrl.h"
 #include "tooltip_manager.h"
 #include "validators.h"
+#include "whisper_service.h"
 
 #include <libaegisub/character_count.h>
 #include <libaegisub/util.h>
@@ -68,6 +69,7 @@
 #include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
+#include <wx/splitter.h>
 
 namespace {
 
@@ -197,14 +199,26 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 	main_sizer->Add(middle_left_sizer,0,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,3);
 	main_sizer->Add(middle_right_sizer,0,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,3);
 
-	// Text editor
-	edit_ctrl = new SubsTextEditCtrl(this, FromDIP(wxSize(300,50)), wxBORDER_SUNKEN, c);
+	// Text editor with whisper splitter
+	edit_splitter = new wxSplitterWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+		wxSP_THIN_SASH | wxSP_LIVE_UPDATE | wxSP_NO_XP_THEME);
+	edit_splitter->SetMinimumPaneSize(50);
+
+	whisper_editor = new wxTextCtrl(edit_splitter, -1, "",
+		wxDefaultPosition, wxDefaultSize,
+		wxBORDER_SUNKEN | wxTE_MULTILINE | wxTE_READONLY);
+	whisper_editor->SetBackgroundColour(wxColour(245, 245, 245));
+
+	edit_ctrl = new SubsTextEditCtrl(edit_splitter, FromDIP(wxSize(300,50)), wxBORDER_SUNKEN, c);
 	edit_ctrl->Bind(wxEVT_CHAR_HOOK, &SubsEditBox::OnKeyDown, this);
+
+	// Start unsplit (whisper panel hidden), will be shown when audio + API key available
+	edit_splitter->Initialize(edit_ctrl);
 
 	secondary_editor = new wxTextCtrl(this, -1, "", wxDefaultPosition, FromDIP(wxSize(300,50)), wxBORDER_SUNKEN | wxTE_MULTILINE | wxTE_READONLY);
 
 	main_sizer->Add(secondary_editor,1,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,3);
-	main_sizer->Add(edit_ctrl,1,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,3);
+	main_sizer->Add(edit_splitter,1,wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,3);
 	main_sizer->Hide(secondary_editor);
 
 	bottom_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -237,6 +251,7 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 		context->selectionController->AddActiveLineListener(&SubsEditBox::OnActiveLineChanged, this),
 		context->selectionController->AddSelectionListener(&SubsEditBox::OnSelectedSetChanged, this),
 		context->initialLineState->AddChangeListener(&SubsEditBox::OnLineInitialTextChanged, this),
+		context->project->AddAudioProviderListener([this](agi::AudioProvider *) { UpdateWhisperVisibility(); }),
 	 });
 
 	context->textSelectionController->SetControl(edit_ctrl);
@@ -331,6 +346,9 @@ void SubsEditBox::OnCommit(int type) {
 	if (type == AssFile::COMMIT_NEW) {
 		PopulateList(effect_box, AssDialogue_Effect);
 		PopulateList(actor_box, AssDialogue_Actor);
+		if (c->whisperService)
+			c->whisperService->LoadFromExtradata();
+		UpdateWhisperVisibility();
 		return;
 	}
 	else if (type & AssFile::COMMIT_STYLES)
@@ -409,6 +427,7 @@ void SubsEditBox::OnActiveLineChanged(AssDialogue *new_line) {
 	commit_id = -1;
 
 	UpdateFields(AssFile::COMMIT_DIAG_FULL, false);
+	UpdateWhisperText();
 }
 
 void SubsEditBox::OnSelectedSetChanged() {
@@ -643,4 +662,43 @@ void SubsEditBox::UpdateCharacterCount(std::string const& text) {
 		char_count->SetBackgroundColour(to_wx(OPT_GET("Colour/Subtitle/Syntax/Background/Error")->GetColor()));
 	else
 		char_count->SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
+}
+
+void SubsEditBox::UpdateWhisperVisibility() {
+	bool should_show = c->project->AudioProvider() &&
+		!OPT_GET("Automation/Whisper/API Key")->GetString().empty();
+
+	if (should_show && !edit_splitter->IsSplit()) {
+		edit_splitter->SplitVertically(whisper_editor, edit_ctrl);
+		edit_splitter->SetSashGravity(0.4);
+		whisper_editor->Show();
+	} else if (!should_show && edit_splitter->IsSplit()) {
+		edit_splitter->Unsplit(whisper_editor);
+	}
+}
+
+void SubsEditBox::UpdateWhisperText() {
+	if (!line || !c->whisperService) {
+		whisper_editor->ChangeValue("");
+		return;
+	}
+
+	if (!edit_splitter->IsSplit()) return;
+
+	std::string cached = c->whisperService->GetCachedText(line);
+	if (!cached.empty()) {
+		whisper_editor->ChangeValue(to_wx(cached));
+		return;
+	}
+
+	whisper_editor->ChangeValue(_("Transcribing..."));
+
+	c->whisperService->TranscribeAsync(line, [this](std::string const& result) {
+		if (result.empty())
+			whisper_editor->ChangeValue(_("(no result)"));
+		else
+			whisper_editor->ChangeValue(to_wx(result));
+
+		c->subsGrid->Refresh(false);
+	});
 }
