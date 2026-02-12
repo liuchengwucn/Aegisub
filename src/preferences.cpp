@@ -369,6 +369,9 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	// Whisper Model (plain text input)
 	p->OptionAdd(ai, _("Whisper Model"), "Automation/Whisper/Model");
 
+	// Whisper Lookahead Lines
+	p->OptionAdd(ai, _("Whisper Lookahead Lines"), "Automation/Whisper/Lookahead Lines", 0, 10);
+
 	p->SetSizerAndFit(p->sizer);
 }
 

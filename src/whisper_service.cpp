@@ -249,3 +249,21 @@ void WhisperService::TranscribeAsync(AssDialogue *line, std::function<void(std::
 		});
 	});
 }
+
+void WhisperService::TranscribeWithLookahead(AssDialogue *line, std::function<void(std::string const&)> on_active_complete) {
+	if (!line) return;
+
+	// Transcribe the active line with the UI callback
+	TranscribeAsync(line, std::move(on_active_complete));
+
+	// Lookahead: silently transcribe subsequent lines
+	int lookahead = OPT_GET("Automation/Whisper/Lookahead Lines")->GetInt();
+	if (lookahead <= 0) return;
+
+	auto it = context->ass->iterator_to(*line);
+	++it; // move past current line
+	for (int i = 0; i < lookahead && it != context->ass->Events.end(); ++i, ++it) {
+		AssDialogue *next = &*it;
+		TranscribeAsync(next, [](std::string const&) {});
+	}
+}

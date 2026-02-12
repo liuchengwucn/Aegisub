@@ -693,7 +693,7 @@ void SubsEditBox::UpdateWhisperText() {
 
 	whisper_editor->ChangeValue(_("Transcribing..."));
 
-	c->whisperService->TranscribeAsync(line, [this](std::string const& result) {
+	c->whisperService->TranscribeWithLookahead(line, [this](std::string const& result) {
 		if (result.empty())
 			whisper_editor->ChangeValue(_("(no result)"));
 		else
