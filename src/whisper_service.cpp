@@ -282,4 +282,5 @@ void WhisperService::InvalidateCache(AssDialogue *line) {
 	if (!line) return;
 	std::lock_guard<std::mutex> lock(mutex);
 	cache.erase(line->Id);
+	in_flight.erase(line->Id);
 }

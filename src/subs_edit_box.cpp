@@ -360,6 +360,23 @@ void SubsEditBox::OnCommit(int type) {
 
 	SetControlsState(!!line);
 	UpdateFields(type, true);
+
+	if (type & AssFile::COMMIT_DIAG_TIME) {
+		if (line && c->whisperService && edit_splitter->IsSplit()) {
+			AssDialogue *current_line = line;
+			c->whisperService->InvalidateCache(current_line);
+			whisper_editor->ChangeValue(_("Transcribing..."));
+			c->whisperService->TranscribeAsync(current_line,
+				[this, current_line](std::string const& result) {
+					if (line != current_line) return;
+					if (result.empty())
+						whisper_editor->ChangeValue(_("(no result)"));
+					else
+						whisper_editor->ChangeValue(to_wx(result));
+					c->subsGrid->Refresh(false);
+				});
+		}
+	}
 }
 
 void SubsEditBox::UpdateFields(int type, bool repopulate_lists) {
