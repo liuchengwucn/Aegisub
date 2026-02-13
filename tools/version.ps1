@@ -58,6 +58,9 @@ if ($exactGitTag -match $semVerMatch) {
   $version['RESOURCE_BASE_VERSION'] = $Matches[1..3]
   $version['INSTALLER_VERSION'] = $gitVersionString = ($Matches[1..3] -join '.') + @("-$($Matches[4])",'')[!$Matches[4]]
 } else {
+  $version['TAGGED_RELEASE'] = $false
+  $version['RESOURCE_BASE_VERSION'] = @(0, 0, 0)
+  $version['INSTALLER_VERSION'] = '0.0.0'
   foreach ($rev in (git -C $repositoryRootPath rev-list --tags 2>$null)) {
     $tag = git -C $repositoryRootPath describe --exact-match --tags $rev 2>$null
     if ($tag -match $semVerMatch) {#
