@@ -187,6 +187,11 @@ std::string WhisperService::CallWhisperAPI(std::string const& wav_path) {
 
 void WhisperService::TranscribeAsync(AssDialogue *line, std::function<void(std::string const&)> on_complete) {
 	if (!line) return;
+	TranscribeAsync(line, line->Start, line->End, std::move(on_complete));
+}
+
+void WhisperService::TranscribeAsync(AssDialogue *line, int start_ms, int end_ms, std::function<void(std::string const&)> on_complete) {
+	if (!line) return;
 
 	std::string api_key = OPT_GET("Automation/Whisper/API Key")->GetString();
 	if (api_key.empty()) return;
@@ -194,12 +199,10 @@ void WhisperService::TranscribeAsync(AssDialogue *line, std::function<void(std::
 	auto provider = context->project->AudioProvider();
 	if (!provider) return;
 
-	int duration_ms = line->End - line->Start;
+	int duration_ms = end_ms - start_ms;
 	if (duration_ms <= 0 || duration_ms > MAX_DURATION_MS) return;
 
 	int line_id = line->Id;
-	int start_ms = line->Start;
-	int end_ms = line->End;
 
 	{
 		std::lock_guard<std::mutex> lock(mutex);
@@ -273,4 +276,10 @@ void WhisperService::TranscribeWithLookahead(AssDialogue *line, std::function<vo
 		AssDialogue *next = &*it;
 		TranscribeAsync(next, [](std::string const&) {});
 	}
+}
+
+void WhisperService::InvalidateCache(AssDialogue *line) {
+	if (!line) return;
+	std::lock_guard<std::mutex> lock(mutex);
+	cache.erase(line->Id);
 }

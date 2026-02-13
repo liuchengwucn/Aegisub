@@ -48,7 +48,9 @@ public:
 	std::string GetCachedText(AssDialogue const *line) const;
 	bool HasText(AssDialogue const *line) const;
 	void TranscribeAsync(AssDialogue *line, std::function<void(std::string const&)> on_complete);
+	void TranscribeAsync(AssDialogue *line, int start_ms, int end_ms, std::function<void(std::string const&)> on_complete);
 	void TranscribeWithLookahead(AssDialogue *line, std::function<void(std::string const&)> on_active_complete);
+	void InvalidateCache(AssDialogue *line);
 	void LoadFromExtradata();
 	void Clear();
 };

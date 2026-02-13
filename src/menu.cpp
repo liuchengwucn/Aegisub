@@ -456,8 +456,8 @@ class AutomationMenu final : public wxMenu {
 			cm->Remove(item);
 
 		wxMenuItemList &items = GetMenuItems();
-		// Remove everything but automation manager and the separator
-		for (size_t i = items.size() - 1; i >= 2; --i)
+		// Remove everything but automation manager, separator, whisper command, and separator
+		for (size_t i = items.size() - 1; i >= 4; --i)
 			Delete(items[i]);
 
 		auto macros = config::global_scripts->GetMacros();
@@ -493,6 +493,8 @@ public:
 	, local_slot(c->local_scripts->AddScriptChangeListener(&AutomationMenu::Regenerate, this))
 	{
 		cm->AddCommand(cmd::get("am/meta"), this);
+		AppendSeparator();
+		cm->AddCommand(cmd::get("am/whisper/regenerate"), this);
 		AppendSeparator();
 		Regenerate();
 	}

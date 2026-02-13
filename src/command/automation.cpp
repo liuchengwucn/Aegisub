@@ -37,6 +37,8 @@
 #include "../include/aegisub/context.h"
 #include "../libresrc/libresrc.h"
 #include "../options.h"
+#include "../selection_controller.h"
+#include "../whisper_service.h"
 
 
 namespace {
@@ -98,6 +100,32 @@ struct meta final : public Command {
 	}
 };
 
+struct whisper_regenerate final : public Command {
+	CMD_NAME("am/whisper/regenerate")
+	STR_MENU("&Regenerate Whisper Transcription")
+	STR_DISP("Regenerate Whisper Transcription")
+	STR_HELP("Clear cache and regenerate Whisper transcription for selected lines")
+
+	void operator()(agi::Context *c) override {
+		if (!c->whisperService) return;
+
+		auto const& sel = c->selectionController->GetSelectedSet();
+		if (sel.empty()) return;
+
+		for (auto line : sel) {
+			c->whisperService->InvalidateCache(line);
+		}
+
+		// Trigger re-transcription of active line
+		auto active = c->selectionController->GetActiveLine();
+		if (active && c->whisperService) {
+			c->whisperService->TranscribeWithLookahead(active, [](std::string const&) {});
+		}
+
+		c->frame->StatusTimeout(_("Whisper cache cleared, re-transcribing..."));
+	}
+};
+
 }
 
 namespace cmd {
@@ -106,5 +134,6 @@ namespace cmd {
 		reg(std::make_unique<open_manager>());
 		reg(std::make_unique<reload_all>());
 		reg(std::make_unique<reload_autoload>());
+		reg(std::make_unique<whisper_regenerate>());
 	}
 }
