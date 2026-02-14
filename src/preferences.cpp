@@ -373,6 +373,17 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	// Whisper Model (plain text input)
 	p->OptionAdd(ai, _("Whisper Model"), "Automation/Whisper/Model");
 
+	// Whisper Prompt (multiline)
+	p->parent->AddChangeableOption("Automation/Whisper/Prompt");
+	ai.sizer->Add(new wxStaticText(ai.box, -1, _("Whisper Prompt")), 1, wxALIGN_TOP);
+	auto prompt_text = new wxTextCtrl(ai.box, -1, to_wx(OPT_GET("Automation/Whisper/Prompt")->GetString()),
+		wxDefaultPosition, wxSize(-1, 60), wxTE_MULTILINE);
+	prompt_text->Bind(wxEVT_TEXT, [parent](wxCommandEvent& evt) {
+		evt.Skip();
+		parent->SetOption(std::make_unique<agi::OptionValueString>("Automation/Whisper/Prompt", from_wx(evt.GetString())));
+	});
+	ai.sizer->Add(prompt_text, wxSizerFlags().Expand());
+
 	// Whisper Language
 	wxString lang_choices[] = { "Auto", "zh", "en", "ja" };
 	wxArrayString lang_arr(4, lang_choices);

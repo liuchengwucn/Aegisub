@@ -129,6 +129,13 @@ std::string WhisperService::CallWhisperAPI(std::string const& wav_path) {
 		curl_mime_data(part, language.c_str(), CURL_ZERO_TERMINATED);
 	}
 
+	std::string prompt = OPT_GET("Automation/Whisper/Prompt")->GetString();
+	if (!prompt.empty()) {
+		part = curl_mime_addpart(mime);
+		curl_mime_name(part, "prompt");
+		curl_mime_data(part, prompt.c_str(), CURL_ZERO_TERMINATED);
+	}
+
 	struct curl_slist *headers = nullptr;
 	headers = curl_slist_append(headers, ("Authorization: Bearer " + api_key).c_str());
 
