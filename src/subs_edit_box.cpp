@@ -107,6 +107,7 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxRAISED_BORDER, "SubsEditBox")
 , c(context)
 , undo_timer(GetEventHandler())
+, whisper_debounce_timer(GetEventHandler())
 {
 	using std::bind;
 
@@ -240,7 +241,8 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 
 	Bind(wxEVT_CHAR_HOOK, &SubsEditBox::OnKeyDown, this);
 	Bind(wxEVT_SIZE, &SubsEditBox::OnSize, this);
-	Bind(wxEVT_TIMER, [this](wxTimerEvent&) { commit_id = -1; });
+	Bind(wxEVT_TIMER, [this](wxTimerEvent&) { commit_id = -1; }, undo_timer.GetId());
+	Bind(wxEVT_TIMER, &SubsEditBox::OnWhisperDebounceTimer, this, whisper_debounce_timer.GetId());
 
 	wxSizeEvent evt;
 	OnSize(evt);
@@ -363,18 +365,10 @@ void SubsEditBox::OnCommit(int type) {
 
 	if (type & AssFile::COMMIT_DIAG_TIME) {
 		if (line && c->whisperService && edit_splitter->IsSplit()) {
-			AssDialogue *current_line = line;
-			c->whisperService->InvalidateCache(current_line);
+			c->whisperService->InvalidateCache(line);
 			whisper_editor->ChangeValue(_("Transcribing..."));
-			c->whisperService->TranscribeAsync(current_line,
-				[this, current_line](std::string const& result) {
-					if (line != current_line) return;
-					if (result.empty())
-						whisper_editor->ChangeValue(_("(no result)"));
-					else
-						whisper_editor->ChangeValue(to_wx(result));
-					c->subsGrid->Refresh(false);
-				});
+			whisper_pending_line = line;
+			whisper_debounce_timer.Start(500, wxTIMER_ONE_SHOT);
 		}
 	}
 }
@@ -721,4 +715,26 @@ void SubsEditBox::UpdateWhisperText() {
 
 		c->subsGrid->Refresh(false);
 	});
+}
+
+void SubsEditBox::OnWhisperDebounceTimer(wxTimerEvent&) {
+	if (!whisper_pending_line || !c->whisperService || !edit_splitter->IsSplit()) {
+		whisper_pending_line = nullptr;
+		return;
+	}
+
+	AssDialogue *current_line = whisper_pending_line;
+	whisper_pending_line = nullptr;
+
+	if (line != current_line) return;
+
+	c->whisperService->TranscribeAsync(current_line,
+		[this, current_line](std::string const& result) {
+			if (line != current_line) return;
+			if (result.empty())
+				whisper_editor->ChangeValue(_("(no result)"));
+			else
+				whisper_editor->ChangeValue(to_wx(result));
+			c->subsGrid->Refresh(false);
+		});
 }

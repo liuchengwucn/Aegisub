@@ -202,6 +202,13 @@ class SubsEditBox final : public wxPanel {
 	/// Show/hide whisper panel based on audio and API key availability
 	void UpdateWhisperVisibility();
 
+	/// Timer for debouncing whisper re-transcription on time changes
+	wxTimer whisper_debounce_timer;
+	/// The line pending whisper re-transcription after debounce
+	AssDialogue *whisper_pending_line = nullptr;
+	/// Fire debounced whisper transcription
+	void OnWhisperDebounceTimer(wxTimerEvent&);
+
 	SubsTextEditCtrl *edit_ctrl;
 	wxTextCtrl *secondary_editor;
 	wxTextCtrl *whisper_editor;

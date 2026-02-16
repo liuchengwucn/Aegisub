@@ -26,6 +26,7 @@
 #include <libaegisub/log.h>
 
 #include <algorithm>
+#include <atomic>
 #include <filesystem>
 
 #include <curl/curl.h>
@@ -36,6 +37,8 @@ WhisperService::WhisperService(agi::Context *context)
 : context(context)
 {
 }
+
+std::atomic<int> WhisperService::temp_file_counter{0};
 
 void WhisperService::LoadFromExtradata() {
 	std::lock_guard<std::mutex> lock(mutex);
@@ -219,9 +222,10 @@ void WhisperService::TranscribeAsync(AssDialogue *line, int start_ms, int end_ms
 	}
 
 	agi::dispatch::Background().Async([=, this]() {
-		// Export audio clip to temp WAV
+		// Export audio clip to temp WAV with unique filename to avoid conflicts
 		auto temp_dir = std::filesystem::temp_directory_path();
-		auto temp_path = temp_dir / ("aegisub_whisper_" + std::to_string(line_id) + ".wav");
+		int file_seq = temp_file_counter.fetch_add(1);
+		auto temp_path = temp_dir / ("aegisub_whisper_" + std::to_string(line_id) + "_" + std::to_string(file_seq) + ".wav");
 		agi::fs::path wav_path(temp_path.string());
 
 		try {
@@ -289,5 +293,8 @@ void WhisperService::InvalidateCache(AssDialogue *line) {
 	if (!line) return;
 	std::lock_guard<std::mutex> lock(mutex);
 	cache.erase(line->Id);
-	in_flight.erase(line->Id);
+	// Note: do NOT erase from in_flight here. The old background task still
+	// holds the temp file open; clearing in_flight would allow a new task to
+	// start for the same line_id while the old one is still running.
+	// The old task's result will simply be overwritten by the new one.
 }

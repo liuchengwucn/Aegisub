@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -38,6 +39,9 @@ class WhisperService {
 
 	static constexpr const char *EXTRADATA_KEY = "whisper";
 	static constexpr int MAX_DURATION_MS = 60000;
+
+	/// Atomic counter for generating unique temp file names
+	static std::atomic<int> temp_file_counter;
 
 	std::string CallWhisperAPI(std::string const& wav_path);
 	void StoreInExtradata(AssDialogue *line, std::string const& text);
