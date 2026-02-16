@@ -197,21 +197,21 @@ class SubsEditBox final : public wxPanel {
 
 	void SetDurationField();
 
-	/// Update whisper text display for the current line
-	void UpdateWhisperText();
-	/// Show/hide whisper panel based on audio and API key availability
-	void UpdateWhisperVisibility();
+	/// Update STT text display for the current line
+	void UpdateSTTText();
+	/// Show/hide STT panel based on audio and API key availability
+	void UpdateSTTVisibility();
 
-	/// Timer for debouncing whisper re-transcription on time changes
-	wxTimer whisper_debounce_timer;
-	/// The line pending whisper re-transcription after debounce
-	AssDialogue *whisper_pending_line = nullptr;
-	/// Fire debounced whisper transcription
-	void OnWhisperDebounceTimer(wxTimerEvent&);
+	/// Timer for debouncing STT re-transcription on time changes
+	wxTimer stt_debounce_timer;
+	/// The line pending STT re-transcription after debounce
+	AssDialogue *stt_pending_line = nullptr;
+	/// Fire debounced STT transcription
+	void OnSTTDebounceTimer(wxTimerEvent&);
 
 	SubsTextEditCtrl *edit_ctrl;
 	wxTextCtrl *secondary_editor;
-	wxTextCtrl *whisper_editor;
+	wxTextCtrl *stt_editor;
 	wxSplitterWindow *edit_splitter;
 
 public:

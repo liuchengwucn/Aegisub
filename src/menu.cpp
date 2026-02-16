@@ -456,7 +456,7 @@ class AutomationMenu final : public wxMenu {
 			cm->Remove(item);
 
 		wxMenuItemList &items = GetMenuItems();
-		// Remove everything but automation manager, separator, whisper command, and separator
+		// Remove everything but automation manager, separator, STT command, and separator
 		for (size_t i = items.size() - 1; i >= 4; --i)
 			Delete(items[i]);
 
@@ -494,7 +494,7 @@ public:
 	{
 		cm->AddCommand(cmd::get("am/meta"), this);
 		AppendSeparator();
-		cm->AddCommand(cmd::get("am/whisper/regenerate"), this);
+		cm->AddCommand(cmd::get("am/stt/regenerate"), this);
 		AppendSeparator();
 		Regenerate();
 	}

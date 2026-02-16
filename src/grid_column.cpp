@@ -22,7 +22,7 @@
 #include "include/aegisub/context.h"
 #include "options.h"
 #include "video_controller.h"
-#include "whisper_service.h"
+#include "stt_service.h"
 
 #include <libaegisub/character_count.h>
 
@@ -402,14 +402,14 @@ public:
 	}
 };
 
-struct GridColumnWhisper final : GridColumn {
-	COLUMN_HEADER(_("Whisper"))
-	COLUMN_DESCRIPTION(_("Whisper Transcription"))
+struct GridColumnSTT final : GridColumn {
+	COLUMN_HEADER(_("STT"))
+	COLUMN_DESCRIPTION(_("Speech to Text"))
 	bool Centered() const override { return false; }
 
 	wxString Value(const AssDialogue *d, const agi::Context *c) const override {
-		if (c->whisperService) {
-			std::string text = c->whisperService->GetCachedText(d);
+		if (c->sttService) {
+			std::string text = c->sttService->GetCachedText(d);
 			if (!text.empty())
 				return to_wx(text);
 		}
@@ -419,7 +419,7 @@ struct GridColumnWhisper final : GridColumn {
 		if (!ids.empty()) {
 			auto entries = c->ass->GetExtradata(ids);
 			for (auto const& e : entries) {
-				if (e.key == "whisper" && !e.value.empty())
+				if (e.key == "stt" && !e.value.empty())
 					return to_wx(e.value);
 			}
 		}
@@ -465,7 +465,7 @@ std::vector<std::unique_ptr<GridColumn>> GetGridColumns() {
 	ret.push_back(make<GridColumnMarginLeft>());
 	ret.push_back(make<GridColumnMarginRight>());
 	ret.push_back(make<GridColumnMarginVert>());
-	ret.push_back(make<GridColumnWhisper>());
+	ret.push_back(make<GridColumnSTT>());
 	ret.push_back(make<GridColumnText>());
 	return ret;
 }

@@ -360,37 +360,37 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	// AI Settings section
 	auto ai = p->PageSizer(_("AI"));
 
-	// Whisper Enabled
-	p->OptionAdd(ai, _("Enable Whisper"), "Automation/Whisper/Enabled");
+	// Speech to Text Enabled
+	p->OptionAdd(ai, _("Enable Speech to Text"), "Automation/Speech to Text/Enabled");
 	p->CellSkip(ai);
 
-	// Whisper API Base URL
-	p->OptionAdd(ai, _("Whisper API Base URL"), "Automation/Whisper/Base URL");
+	// API Base URL
+	p->OptionAdd(ai, _("API Base URL"), "Automation/Speech to Text/Base URL");
 
-	// Whisper API Key (plain text)
-	p->OptionAdd(ai, _("Whisper API Key"), "Automation/Whisper/API Key");
+	// API Key (plain text)
+	p->OptionAdd(ai, _("API Key"), "Automation/Speech to Text/API Key");
 
-	// Whisper Model (plain text input)
-	p->OptionAdd(ai, _("Whisper Model"), "Automation/Whisper/Model");
+	// Model (plain text input)
+	p->OptionAdd(ai, _("Model"), "Automation/Speech to Text/Model");
 
-	// Whisper Prompt (multiline)
-	p->parent->AddChangeableOption("Automation/Whisper/Prompt");
-	ai.sizer->Add(new wxStaticText(ai.box, -1, _("Whisper Prompt")), 1, wxALIGN_TOP);
-	auto prompt_text = new wxTextCtrl(ai.box, -1, to_wx(OPT_GET("Automation/Whisper/Prompt")->GetString()),
+	// Prompt (multiline)
+	p->parent->AddChangeableOption("Automation/Speech to Text/Prompt");
+	ai.sizer->Add(new wxStaticText(ai.box, -1, _("Prompt")), 1, wxALIGN_TOP);
+	auto prompt_text = new wxTextCtrl(ai.box, -1, to_wx(OPT_GET("Automation/Speech to Text/Prompt")->GetString()),
 		wxDefaultPosition, wxSize(-1, 60), wxTE_MULTILINE);
 	prompt_text->Bind(wxEVT_TEXT, [parent](wxCommandEvent& evt) {
 		evt.Skip();
-		parent->SetOption(std::make_unique<agi::OptionValueString>("Automation/Whisper/Prompt", from_wx(evt.GetString())));
+		parent->SetOption(std::make_unique<agi::OptionValueString>("Automation/Speech to Text/Prompt", from_wx(evt.GetString())));
 	});
 	ai.sizer->Add(prompt_text, wxSizerFlags().Expand());
 
-	// Whisper Language
+	// Language
 	wxString lang_choices[] = { "Auto", "zh", "en", "ja" };
 	wxArrayString lang_arr(4, lang_choices);
-	p->OptionChoice(ai, _("Whisper Language"), lang_arr, "Automation/Whisper/Language");
+	p->OptionChoice(ai, _("Language"), lang_arr, "Automation/Speech to Text/Language");
 
-	// Whisper Lookahead Lines
-	p->OptionAdd(ai, _("Whisper Lookahead Lines"), "Automation/Whisper/Lookahead Lines", 0, 10);
+	// Lookahead Lines
+	p->OptionAdd(ai, _("Lookahead Lines"), "Automation/Speech to Text/Lookahead Lines", 0, 10);
 
 	p->SetSizerAndFit(p->sizer);
 }

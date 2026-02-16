@@ -17,18 +17,23 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <string>
 
 namespace agi { struct Context; }
 class AssDialogue;
+class STTProvider;
 
-/// Manages Whisper speech-to-text transcription for subtitle lines
-class WhisperService {
+/// Manages speech-to-text transcription for subtitle lines
+class STTService {
 	agi::Context *context;
 
-	/// In-memory cache: dialogue line Id -> whisper text
+	/// The current STT provider implementation
+	std::unique_ptr<STTProvider> provider;
+
+	/// In-memory cache: dialogue line Id -> transcribed text
 	std::map<int, std::string> cache;
 
 	/// Set of line Ids currently being transcribed
@@ -37,17 +42,18 @@ class WhisperService {
 	/// Mutex protecting cache and in_flight
 	mutable std::mutex mutex;
 
-	static constexpr const char *EXTRADATA_KEY = "whisper";
+	static constexpr const char *EXTRADATA_KEY = "stt";
 	static constexpr int MAX_DURATION_MS = 60000;
 
 	/// Atomic counter for generating unique temp file names
 	static std::atomic<int> temp_file_counter;
 
-	std::string CallWhisperAPI(std::string const& wav_path);
+	void RecreateProvider();
 	void StoreInExtradata(AssDialogue *line, std::string const& text);
 
 public:
-	WhisperService(agi::Context *context);
+	STTService(agi::Context *context);
+	~STTService();
 
 	std::string GetCachedText(AssDialogue const *line) const;
 	bool HasText(AssDialogue const *line) const;
