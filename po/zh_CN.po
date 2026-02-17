@@ -6925,6 +6925,66 @@ msgstr ""
 "要支付费用，但同时也不会得到任何形式的担保。%n%n您可以到Aegisub官网获取源代码"
 "信息。"
 
+#: ../src/preferences.cpp:364
+msgid "Enable Speech to Text"
+msgstr "启用语音转文字"
+
+#: ../src/preferences.cpp:368
+msgid "API Base URL"
+msgstr "API Base URL"
+
+#: ../src/preferences.cpp:371
+msgid "API Key"
+msgstr "API Key"
+
+#: ../src/preferences.cpp:374
+msgid "Model"
+msgstr "模型"
+
+#: ../src/preferences.cpp:378
+msgid "Prompt"
+msgstr "提示词"
+
+#: ../src/preferences.cpp:393
+msgid "Lookahead Lines"
+msgstr "预转录行数"
+
+#: ../src/grid_column.cpp:406
+msgid "STT"
+msgstr "语音转文字"
+
+#: ../src/grid_column.cpp:407
+msgid "Speech to Text"
+msgstr "语音转文字"
+
+#: ../src/command/automation.cpp:105
+msgid "&Regenerate Speech to Text"
+msgstr "重新生成语音转文字(&R)"
+
+#: ../src/command/automation.cpp:106
+msgid "Regenerate Speech to Text"
+msgstr "重新生成语音转文字"
+
+#: ../src/command/automation.cpp:107
+msgid "Clear cache and regenerate speech-to-text transcription for selected lines"
+msgstr "清除缓存并重新生成所选行的语音转文字结果"
+
+#: ../src/command/automation.cpp:125
+msgid "STT cache cleared, re-transcribing..."
+msgstr "语音转文字缓存已清除，正在重新转录..."
+
+#: ../src/subs_edit_box.cpp:368 ../src/subs_edit_box.cpp:706
+msgid "Transcribing..."
+msgstr "转录中..."
+
+#: ../src/subs_edit_box.cpp:710 ../src/subs_edit_box.cpp:733
+msgid "(no result)"
+msgstr "(无结果)"
+
+#: ../src/stt_service.cpp:284
+msgid "speech to text"
+msgstr "语音转文字"
+
 #~ msgid "&Opaque box"
 #~ msgstr "不透明背景(&O)"
 
