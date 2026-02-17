@@ -6,6 +6,43 @@ The bug tracker can be found at https://github.com/TypesettingTools/Aegisub/issu
 
 Support is available on [Discord](https://discord.com/invite/AZaVyPr) or [IRC](irc://irc.rizon.net/aegisub).
 
+## Fork Changes
+
+This fork adds whisper **Speech to Text (STT)** integration to Aegisub, allowing users to call external STT APIs directly from the subtitle editing workflow.
+
+![](https://private-user-images.githubusercontent.com/77235746/549179655-f5b4ef9d-fa6a-4b82-8086-c0abca906d55.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzEzMDYyNTMsIm5iZiI6MTc3MTMwNTk1MywicGF0aCI6Ii83NzIzNTc0Ni81NDkxNzk2NTUtZjViNGVmOWQtZmE2YS00YjgyLTgwODYtYzBhYmNhOTA2ZDU1LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjAyMTclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwMjE3VDA1MjU1M1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTlhZmE3MDE5YTgzNDAxYmY0YzA1ODU5MWY5ZWEyZjI1YmIxODE5YjNhNzgzZDJjMzkyN2I2ZmViM2MzZjY2OTYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.y0HREK7FAFBykZxywev6YLXKyqfvwM8e7Ii4wRkzCAc)
+
+### Features
+
+- **Inline STT panel**: When enabled, a split panel appears beside the edit box showing the transcription result for the selected subtitle line.
+- **Automatic transcription**: Selecting a subtitle line automatically sends its audio segment to the configured STT API and displays the result.
+- **Lookahead**: Configurable number of subsequent lines to pre-transcribe in the background, reducing perceived latency.
+- **Caching**: Transcription results are cached in memory and persisted in ASS file extradata, so they survive file reloads.
+- **Auto re-transcription**: When audio timing is changed, the cached result is automatically invalidated and re-transcribed (with debounce).
+- **Manual regeneration**: A menu command (`Automation > Regenerate Speech to Text`) to clear cache and re-transcribe selected lines.
+- **STT column in subtitle grid**: Transcription results are visible as a column in the subtitle grid.
+
+### Provider Architecture
+
+The STT system uses an abstract `STTProvider` interface, making it extensible to different backends:
+
+- **OpenAI Compatible** (default): Works with OpenAI's Audio Transcriptions API, or any compatible endpoint (local whisper.cpp servers, Azure OpenAI, etc.). Supports models like `whisper-1`, `gpt-4o-transcribe`, and others.
+- Future providers (Vosk, Azure Speech Service, etc.) can be added by implementing the `STTProvider` interface.
+
+### Configuration
+
+Settings are available in `Preferences > Automation > AI`:
+
+| Setting | Description |
+|---------|-------------|
+| Enable Speech to Text | Toggle the STT feature on/off (default: off) |
+| API Base URL | API endpoint (default: `https://api.openai.com/v1`) |
+| API Key | Authentication key for the STT API |
+| Model | Model name (default: `whisper-1`) |
+| Prompt | Optional prompt to guide transcription style/terminology |
+| Language | Language hint: Auto, zh, en, ja |
+| Lookahead Lines | Number of lines to pre-transcribe ahead (0-10, default: 2) |
+
 ## Building Aegisub
 
 ### Windows
