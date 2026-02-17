@@ -57,6 +57,9 @@
 #include "version.h"
 #include "xdg_desktop_portal_utils.h"
 
+#include <libaegisub/cajun/elements.h>
+#include <libaegisub/cajun/reader.h>
+#include <libaegisub/cajun/writer.h>
 #include <libaegisub/dispatch.h>
 #include <libaegisub/format_path.h>
 #include <libaegisub/fs.h>
@@ -76,6 +79,36 @@ namespace config {
 	agi::MRUManager *mru = nullptr;
 	agi::Path *path = nullptr;
 	Automation4::AutoloadScriptManager *global_scripts;
+}
+
+/// Migrate old "Automation/Whisper" config keys to "Automation/Speech to Text"
+/// by renaming the JSON object in the user config file before Options loads it.
+static void MigrateSTTConfig(agi::fs::path const& config_file) {
+	try {
+		auto stream = agi::io::Open(config_file);
+		json::UnknownElement root;
+		json::Reader::Read(root, *stream);
+		stream.reset();
+
+		json::Object &root_obj = root;
+		auto automation_it = root_obj.find("Automation");
+		if (automation_it == root_obj.end()) return;
+
+		json::Object &automation = automation_it->second;
+		auto whisper_it = automation.find("Whisper");
+		if (whisper_it == automation.end()) return;
+
+		// Only migrate if "Speech to Text" doesn't already exist
+		if (automation.find("Speech to Text") != automation.end()) return;
+
+		automation["Speech to Text"] = std::move(whisper_it->second);
+		automation.erase(whisper_it);
+
+		agi::JsonWriter::Write(root_obj, agi::io::Save(config_file).Get());
+	}
+	catch (...) {
+		// Migration failure is not fatal; user will just get default values
+	}
 }
 
 wxIMPLEMENT_APP(AegisubApp);
@@ -182,8 +215,11 @@ bool AegisubApp::OnInit() {
 
 	StartupLog("Load user configuration");
 	try {
-		if (!config::opt)
-			config::opt = new agi::Options(config::path->Decode("?user/config.json"), GET_DEFAULT_CONFIG(default_config));
+		if (!config::opt) {
+			auto user_config = config::path->Decode("?user/config.json");
+			MigrateSTTConfig(user_config);
+			config::opt = new agi::Options(user_config, GET_DEFAULT_CONFIG(default_config));
+		}
 	} catch (agi::Exception& e) {
 		LOG_E("config/init") << "Caught exception: " << e.GetMessage();
 	}
