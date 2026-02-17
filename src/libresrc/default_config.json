@@ -99,7 +99,7 @@
 		"Speech to Text" : {
 			"API Key" : "",
 			"Base URL" : "https://api.openai.com/v1",
-			"Enabled" : true,
+			"Enabled" : false,
 			"Language" : "Auto",
 			"Lookahead Lines" : 2,
 			"Model" : "whisper-1",

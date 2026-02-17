@@ -255,7 +255,6 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 		context->initialLineState->AddChangeListener(&SubsEditBox::OnLineInitialTextChanged, this),
 		context->project->AddAudioProviderListener([this](agi::AudioProvider *) { UpdateSTTVisibility(); }),
 		OPT_SUB("Automation/Speech to Text/Enabled", [this](agi::OptionValue const&) { UpdateSTTVisibility(); }),
-		OPT_SUB("Automation/Speech to Text/API Key", [this](agi::OptionValue const&) { UpdateSTTVisibility(); }),
 	 });
 
 	context->textSelectionController->SetControl(edit_ctrl);
@@ -679,8 +678,7 @@ void SubsEditBox::UpdateCharacterCount(std::string const& text) {
 
 void SubsEditBox::UpdateSTTVisibility() {
 	bool should_show = OPT_GET("Automation/Speech to Text/Enabled")->GetBool() &&
-		c->project->AudioProvider() &&
-		!OPT_GET("Automation/Speech to Text/API Key")->GetString().empty();
+		c->project->AudioProvider();
 
 	if (should_show && !edit_splitter->IsSplit()) {
 		edit_splitter->SplitVertically(stt_editor, edit_ctrl);
