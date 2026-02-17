@@ -43,6 +43,7 @@ class STTService {
 	mutable std::mutex mutex;
 
 	static constexpr const char *EXTRADATA_KEY = "stt";
+	static constexpr const char *LEGACY_EXTRADATA_KEY = "whisper";
 	static constexpr int MAX_DURATION_MS = 60000;
 
 	/// Atomic counter for generating unique temp file names

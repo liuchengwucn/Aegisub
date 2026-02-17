@@ -175,7 +175,7 @@ void STTService::LoadFromExtradata() {
 
 		auto entries = context->ass->GetExtradata(ids);
 		for (auto const& e : entries) {
-			if (e.key == EXTRADATA_KEY && !e.value.empty()) {
+			if ((e.key == EXTRADATA_KEY || e.key == LEGACY_EXTRADATA_KEY) && !e.value.empty()) {
 				cache[line.Id] = e.value;
 				break;
 			}
@@ -206,11 +206,11 @@ void STTService::StoreInExtradata(AssDialogue *line, std::string const& text) {
 	uint32_t id = context->ass->AddExtradata(EXTRADATA_KEY, text);
 	auto ids = line->ExtradataIds.get();
 
-	// Remove any existing stt extradata
+	// Remove any existing stt or legacy whisper extradata
 	auto existing = context->ass->GetExtradata(ids);
 	ids.erase(std::remove_if(ids.begin(), ids.end(), [&](uint32_t eid) {
 		for (auto& e : existing)
-			if (e.id == eid && e.key == EXTRADATA_KEY) return true;
+			if (e.id == eid && (e.key == EXTRADATA_KEY || e.key == LEGACY_EXTRADATA_KEY)) return true;
 		return false;
 	}), ids.end());
 

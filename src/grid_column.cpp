@@ -419,7 +419,7 @@ struct GridColumnSTT final : GridColumn {
 		if (!ids.empty()) {
 			auto entries = c->ass->GetExtradata(ids);
 			for (auto const& e : entries) {
-				if (e.key == "stt" && !e.value.empty())
+				if ((e.key == "stt" || e.key == "whisper") && !e.value.empty())
 					return to_wx(e.value);
 			}
 		}
