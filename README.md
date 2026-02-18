@@ -10,7 +10,7 @@ Support is available on [Discord](https://discord.com/invite/AZaVyPr) or [IRC](i
 
 This fork adds whisper **Speech to Text (STT)** integration to Aegisub, allowing users to call external STT APIs directly from the subtitle editing workflow.
 
-![](https://private-user-images.githubusercontent.com/77235746/549179655-f5b4ef9d-fa6a-4b82-8086-c0abca906d55.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzEzMDYyNTMsIm5iZiI6MTc3MTMwNTk1MywicGF0aCI6Ii83NzIzNTc0Ni81NDkxNzk2NTUtZjViNGVmOWQtZmE2YS00YjgyLTgwODYtYzBhYmNhOTA2ZDU1LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjAyMTclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwMjE3VDA1MjU1M1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTlhZmE3MDE5YTgzNDAxYmY0YzA1ODU5MWY5ZWEyZjI1YmIxODE5YjNhNzgzZDJjMzkyN2I2ZmViM2MzZjY2OTYmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.y0HREK7FAFBykZxywev6YLXKyqfvwM8e7Ii4wRkzCAc)
+<img width="3456" height="974" alt="image" src="https://github.com/user-attachments/assets/56dc4906-61ba-4631-b9c7-bb7b61cfb9cc" />
 
 ### Features
 
