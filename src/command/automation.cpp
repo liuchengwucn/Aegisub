@@ -119,7 +119,7 @@ struct stt_regenerate final : public Command {
 		// Trigger re-transcription of active line
 		auto active = c->selectionController->GetActiveLine();
 		if (active && c->sttService) {
-			c->sttService->TranscribeWithLookahead(active, [](std::string const&) {});
+			c->sttService->TranscribeAsync(active, [](std::string const&) {});
 		}
 
 		c->frame->StatusTimeout(_("STT cache cleared, re-transcribing..."));

@@ -218,6 +218,9 @@
 		],
 		"video/zoom/out" : [
 			"Ctrl-KP_Subtract"
+		],
+		"am/stt/regenerate" : [
+			"Ctrl-Shift-R"
 		]
 	},
 	"Styling Assistant" : {

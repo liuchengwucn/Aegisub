@@ -47,6 +47,11 @@ namespace {
 		{nullptr}
 	};
 
+	const char *added_hotkeys_stt_regenerate[][3] = {
+		{"am/stt/regenerate", "Default", "Ctrl-Shift-R"},
+		{nullptr}
+	};
+
 #ifdef __WXMAC__
 	const char *added_hotkeys_minimize[][3] = {
 		{"app/minimize", "Default", "Ctrl-M"},
@@ -122,6 +127,11 @@ void init() {
 		migrations.emplace_back("app/minimize");
 	}
 #endif
+
+	if (boost::find(migrations, "am/stt/regenerate") == end(migrations)) {
+		migrate_hotkeys(added_hotkeys_stt_regenerate);
+		migrations.emplace_back("am/stt/regenerate");
+	}
 
 	OPT_SET("App/Hotkey Migrations")->SetListString(std::move(migrations));
 }
