@@ -385,9 +385,41 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	ai.sizer->Add(prompt_text, wxSizerFlags().Expand());
 
 	// Language
-	wxString lang_choices[] = { "Auto", "zh", "en", "ja" };
-	wxArrayString lang_arr(4, lang_choices);
-	p->OptionChoice(ai, _("Language"), lang_arr, "Automation/Speech to Text/Language");
+	// Each entry: {code, display name}
+	const std::pair<wxString, wxString> languages[] = {
+		{"Auto", _("Auto")},
+		{"zh", _("Chinese")},
+		{"en", _("English")},
+		{"ja", _("Japanese")},
+		{"ko", _("Korean")},
+		{"fr", _("French")},
+		{"de", _("German")},
+		{"es", _("Spanish")},
+		{"ru", _("Russian")},
+	};
+
+	wxArrayString lang_display;
+	wxArrayString lang_codes;
+	for (const auto& [code, name] : languages) {
+		lang_codes.Add(code);
+		lang_display.Add(name);
+	}
+
+	auto lang_cb = new wxComboBox(ai.box, -1, wxEmptyString, wxDefaultPosition, wxDefaultSize, lang_display, wxCB_READONLY | wxCB_DROPDOWN);
+
+	// Select current value
+	wxString cur_lang = to_wx(OPT_GET("Automation/Speech to Text/Language")->GetString());
+	int sel = lang_codes.Index(cur_lang);
+	lang_cb->SetSelection(sel != wxNOT_FOUND ? sel : 0);
+
+	lang_cb->Bind(wxEVT_COMBOBOX, [parent, lang_codes](wxCommandEvent& evt) {
+		evt.Skip();
+		parent->SetOption(std::make_unique<agi::OptionValueString>(
+			"Automation/Speech to Text/Language", from_wx(lang_codes[evt.GetInt()])));
+	});
+	ai.sizer->Add(new wxStaticText(ai.box, -1, _("Language")), 1, wxALIGN_CENTRE_VERTICAL);
+	ai.sizer->Add(lang_cb, wxSizerFlags().Expand());
+	parent->AddChangeableOption("Automation/Speech to Text/Language");
 
 	// Lookahead Lines
 	p->OptionAdd(ai, _("Lookahead Lines"), "Automation/Speech to Text/Lookahead Lines", 0, 10);

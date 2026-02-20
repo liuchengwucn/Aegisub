@@ -6985,6 +6985,38 @@ msgstr "(无结果)"
 msgid "speech to text"
 msgstr "语音转文字"
 
+#: ../src/preferences.cpp
+msgid "Auto"
+msgstr "自动"
+
+#: ../src/preferences.cpp
+msgid "Chinese"
+msgstr "中文"
+
+#: ../src/preferences.cpp
+msgid "English"
+msgstr "英语"
+
+#: ../src/preferences.cpp
+msgid "Japanese"
+msgstr "日语"
+
+#: ../src/preferences.cpp
+msgid "Korean"
+msgstr "韩语"
+
+#: ../src/preferences.cpp
+msgid "French"
+msgstr "法语"
+
+#: ../src/preferences.cpp
+msgid "German"
+msgstr "德语"
+
+#: ../src/preferences.cpp
+msgid "Spanish"
+msgstr "西班牙语"
+
 #~ msgid "&Opaque box"
 #~ msgstr "不透明背景(&O)"
 
