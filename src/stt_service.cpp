@@ -315,8 +315,5 @@ void STTService::InvalidateCache(AssDialogue *line) {
 	if (!line) return;
 	std::lock_guard<std::mutex> lock(mutex);
 	cache.erase(line->Id);
-	// Note: do NOT erase from in_flight here. The old background task still
-	// holds the temp file open; clearing in_flight would allow a new task to
-	// start for the same line_id while the old one is still running.
-	// The old task's result will simply be overwritten by the new one.
+	in_flight.erase(line->Id);
 }

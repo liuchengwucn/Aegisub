@@ -107,7 +107,6 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 : wxPanel(parent, -1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxRAISED_BORDER, "SubsEditBox")
 , c(context)
 , undo_timer(GetEventHandler())
-, stt_debounce_timer(GetEventHandler())
 {
 	using std::bind;
 
@@ -242,7 +241,6 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 	Bind(wxEVT_CHAR_HOOK, &SubsEditBox::OnKeyDown, this);
 	Bind(wxEVT_SIZE, &SubsEditBox::OnSize, this);
 	Bind(wxEVT_TIMER, [this](wxTimerEvent&) { commit_id = -1; }, undo_timer.GetId());
-	Bind(wxEVT_TIMER, &SubsEditBox::OnSTTDebounceTimer, this, stt_debounce_timer.GetId());
 
 	wxSizeEvent evt;
 	OnSize(evt);
@@ -362,14 +360,8 @@ void SubsEditBox::OnCommit(int type) {
 	SetControlsState(!!line);
 	UpdateFields(type, true);
 
-	if (type & AssFile::COMMIT_DIAG_TIME) {
-		if (line && c->sttService && edit_splitter->IsSplit()) {
-			c->sttService->InvalidateCache(line);
-			stt_editor->ChangeValue(_("Transcribing..."));
-			stt_pending_line = line;
-			stt_debounce_timer.Start(500, wxTIMER_ONE_SHOT);
-		}
-	}
+	if (type & AssFile::COMMIT_DIAG_TIME)
+		InvalidateAndRetranscribe();
 }
 
 void SubsEditBox::UpdateFields(int type, bool repopulate_lists) {
@@ -553,6 +545,8 @@ void SubsEditBox::CommitTimes(TimeField field) {
 	file_changed_slot.Block();
 	commit_id = c->ass->Commit(_("modify times"), AssFile::COMMIT_DIAG_TIME, commit_id, sel.size() == 1 ? *sel.begin() : nullptr);
 	file_changed_slot.Unblock();
+
+	InvalidateAndRetranscribe();
 }
 
 void SubsEditBox::SetDurationField() {
@@ -715,20 +709,14 @@ void SubsEditBox::UpdateSTTText() {
 	});
 }
 
-void SubsEditBox::OnSTTDebounceTimer(wxTimerEvent&) {
-	if (!stt_pending_line || !c->sttService || !edit_splitter->IsSplit()) {
-		stt_pending_line = nullptr;
-		return;
-	}
+void SubsEditBox::InvalidateAndRetranscribe() {
+	if (!line || !c->sttService || !edit_splitter->IsSplit()) return;
 
-	AssDialogue *current_line = stt_pending_line;
-	stt_pending_line = nullptr;
+	c->sttService->InvalidateCache(line);
+	stt_editor->ChangeValue(_("Transcribing..."));
 
-	if (line != current_line) return;
-
-	c->sttService->TranscribeAsync(current_line,
-		[this, current_line](std::string const& result) {
-			if (line != current_line) return;
+	c->sttService->TranscribeAsync(line,
+		[this](std::string const& result) {
 			if (result.empty())
 				stt_editor->ChangeValue(_("(no result)"));
 			else

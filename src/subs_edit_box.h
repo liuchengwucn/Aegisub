@@ -202,12 +202,8 @@ class SubsEditBox final : public wxPanel {
 	/// Show/hide STT panel based on audio and API key availability
 	void UpdateSTTVisibility();
 
-	/// Timer for debouncing STT re-transcription on time changes
-	wxTimer stt_debounce_timer;
-	/// The line pending STT re-transcription after debounce
-	AssDialogue *stt_pending_line = nullptr;
-	/// Fire debounced STT transcription
-	void OnSTTDebounceTimer(wxTimerEvent&);
+	/// Invalidate STT cache for the current line and re-transcribe
+	void InvalidateAndRetranscribe();
 
 	SubsTextEditCtrl *edit_ctrl;
 	wxTextCtrl *secondary_editor;
