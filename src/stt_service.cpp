@@ -322,3 +322,58 @@ void STTService::InvalidateCache(AssDialogue *line) {
 	cache.erase(line->Id);
 	in_flight.erase(line->Id);
 }
+
+std::string STTService::TranscribeSync(AssDialogue *line) {
+	if (!line) return "";
+	return TranscribeSync(line, line->Start, line->End);
+}
+
+std::string STTService::TranscribeSync(AssDialogue *line, int start_ms, int end_ms) {
+	if (!line) return "";
+	if (!provider || !provider->IsConfigured()) return "";
+
+	auto audio_provider = context->project->AudioProvider();
+	if (!audio_provider) return "";
+
+	int duration_ms = end_ms - start_ms;
+	if (duration_ms <= 0 || duration_ms > MAX_DURATION_MS) return "";
+
+	int line_id = line->Id;
+
+	// Check cache first
+	{
+		std::lock_guard<std::mutex> lock(mutex);
+		auto it = cache.find(line_id);
+		if (it != cache.end())
+			return it->second;
+	}
+
+	// Export audio clip to temp WAV
+	agi::fs::path temp_dir(std::filesystem::temp_directory_path());
+	int file_seq = temp_file_counter.fetch_add(1);
+	agi::fs::path temp_path = temp_dir / ("aegisub_stt_" + std::to_string(line_id) + "_" + std::to_string(file_seq) + ".wav");
+
+	try {
+		agi::SaveAudioClip(*audio_provider, temp_path, start_ms, end_ms);
+	} catch (std::exception const& e) {
+		LOG_E("stt") << "Failed to export audio: " << e.what();
+		return "";
+	}
+
+	std::string result = provider->Transcribe(temp_path.string());
+
+	// Clean up temp file
+	try { std::filesystem::remove(temp_path); } catch (...) {}
+
+	if (!result.empty()) {
+		{
+			std::lock_guard<std::mutex> lock(mutex);
+			cache[line_id] = result;
+		}
+		StoreInExtradata(line, result);
+		context->ass->Commit(_("speech to text"),
+			AssFile::COMMIT_EXTRADATA | AssFile::COMMIT_DIAG_META);
+	}
+
+	return result;
+}

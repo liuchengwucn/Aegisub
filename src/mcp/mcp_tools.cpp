@@ -16,10 +16,12 @@
 #include "auto4_base.h"
 #include "command/command.h"
 #include "include/aegisub/context.h"
+#include "options.h"
 #include "project.h"
 #include "resolution_resampler.h"
 #include "search_replace_engine.h"
 #include "selection_controller.h"
+#include "stt_service.h"
 #include "subs_controller.h"
 #include "subtitle_format.h"
 #include "video_controller.h"
@@ -1271,6 +1273,175 @@ static ToolDef MakeVideoTool() {
 }
 
 // ============================================================
+// Tool 12: stt — Speech-to-text operations
+// ============================================================
+
+static ToolDef MakeSTTTool() {
+	return {
+		"stt",
+		"Speech-to-text operations.\n"
+		"Actions:\n"
+		"- get_config: Get STT configuration status and settings\n"
+		"- set_config: Update STT settings (all fields optional)\n"
+		"- transcribe: Transcribe lines by index (uses cache if available)\n"
+		"- get_cache: Get cached transcription results\n"
+		"- clear_cache: Clear transcription cache",
+		{{"type", "object"}, {"properties", {
+			{"action", {{"type", "string"}, {"enum", {"get_config", "set_config", "transcribe", "get_cache", "clear_cache"}},
+						{"description", "Operation to perform"}}},
+			{"indices", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"description", "Line indices (for transcribe/get_cache/clear_cache)"}}},
+			{"enabled", {{"type", "boolean"}, {"description", "Enable/disable STT (for set_config)"}}},
+			{"base_url", {{"type", "string"}, {"description", "API base URL (for set_config)"}}},
+			{"api_key", {{"type", "string"}, {"description", "API key (for set_config)"}}},
+			{"model", {{"type", "string"}, {"description", "Model name (for set_config)"}}},
+			{"language", {{"type", "string"}, {"description", "Language code or 'Auto' (for set_config)"}}},
+			{"prompt", {{"type", "string"}, {"description", "Transcription prompt (for set_config)"}}},
+			{"lookahead_lines", {{"type", "integer"}, {"description", "Lookahead line count (for set_config)"}}}
+		}}, {"required", json::array({"action"})}},
+		[](const json& args, agi::Context* ctx) -> json {
+			std::string action = args["action"];
+
+			if (action == "get_config") {
+				std::string api_key = OPT_GET("Automation/Speech to Text/API Key")->GetString();
+				std::string base_url = OPT_GET("Automation/Speech to Text/Base URL")->GetString();
+				return {
+					{"enabled", OPT_GET("Automation/Speech to Text/Enabled")->GetBool()},
+					{"configured", !api_key.empty() && !base_url.empty()},
+					{"base_url", base_url},
+					{"api_key_set", !api_key.empty()},
+					{"model", OPT_GET("Automation/Speech to Text/Model")->GetString()},
+					{"language", OPT_GET("Automation/Speech to Text/Language")->GetString()},
+					{"prompt", OPT_GET("Automation/Speech to Text/Prompt")->GetString()},
+					{"lookahead_lines", OPT_GET("Automation/Speech to Text/Lookahead Lines")->GetInt()},
+					{"has_audio", ctx->project->AudioProvider() != nullptr}
+				};
+			}
+			else if (action == "set_config") {
+				json updated = json::object();
+				if (args.contains("enabled")) {
+					OPT_SET("Automation/Speech to Text/Enabled")->SetBool(args["enabled"]);
+					updated["enabled"] = args["enabled"];
+				}
+				if (args.contains("base_url")) {
+					OPT_SET("Automation/Speech to Text/Base URL")->SetString(args["base_url"]);
+					updated["base_url"] = args["base_url"];
+				}
+				if (args.contains("api_key")) {
+					OPT_SET("Automation/Speech to Text/API Key")->SetString(args["api_key"]);
+					updated["api_key_set"] = true;
+				}
+				if (args.contains("model")) {
+					OPT_SET("Automation/Speech to Text/Model")->SetString(args["model"]);
+					updated["model"] = args["model"];
+				}
+				if (args.contains("language")) {
+					OPT_SET("Automation/Speech to Text/Language")->SetString(args["language"]);
+					updated["language"] = args["language"];
+				}
+				if (args.contains("prompt")) {
+					OPT_SET("Automation/Speech to Text/Prompt")->SetString(args["prompt"]);
+					updated["prompt"] = args["prompt"];
+				}
+				if (args.contains("lookahead_lines")) {
+					OPT_SET("Automation/Speech to Text/Lookahead Lines")->SetInt(args["lookahead_lines"]);
+					updated["lookahead_lines"] = args["lookahead_lines"];
+				}
+				if (updated.empty())
+					throw std::runtime_error("No config fields provided");
+				if (ctx->sttService)
+					ctx->sttService->RecreateProvider();
+				return {{"updated", true}, {"fields", updated}};
+			}
+			else if (action == "transcribe") {
+				auto indices = args.at("indices").get<std::vector<int>>();
+				if (!ctx->sttService)
+					throw std::runtime_error("STT service not available");
+				if (!ctx->project->AudioProvider())
+					throw std::runtime_error("No audio loaded");
+				json results = json::array();
+				for (int idx : indices) {
+					auto* line = GetLineByIndex(ctx, idx);
+					if (!line) {
+						results.push_back({{"index", idx}, {"error", "Line index out of range"}});
+						continue;
+					}
+					int duration = (int)line->End - (int)line->Start;
+					if (duration <= 0) {
+						results.push_back({{"index", idx}, {"error", "Invalid duration"}});
+						continue;
+					}
+					if (duration > 60000) {
+						results.push_back({{"index", idx}, {"error", "Duration exceeds 60s limit"}});
+						continue;
+					}
+					bool from_cache = ctx->sttService->HasText(line);
+					std::string text;
+					if (from_cache) {
+						text = ctx->sttService->GetCachedText(line);
+					} else {
+						text = ctx->sttService->TranscribeSync(line);
+					}
+					results.push_back({
+						{"index", idx},
+						{"start_time", (int)line->Start},
+						{"end_time", (int)line->End},
+						{"text", text},
+						{"from_cache", from_cache}
+					});
+				}
+				return {{"results", results}};
+			}
+			else if (action == "get_cache") {
+				if (!ctx->sttService)
+					throw std::runtime_error("STT service not available");
+				json results = json::array();
+				if (args.contains("indices")) {
+					auto indices = args["indices"].get<std::vector<int>>();
+					for (int idx : indices) {
+						auto* line = GetLineByIndex(ctx, idx);
+						if (!line) continue;
+						if (ctx->sttService->HasText(line))
+							results.push_back({{"index", idx}, {"text", ctx->sttService->GetCachedText(line)}});
+					}
+				} else {
+					int idx = 0;
+					for (auto& line : ctx->ass->Events) {
+						if (ctx->sttService->HasText(&line))
+							results.push_back({{"index", idx}, {"text", ctx->sttService->GetCachedText(&line)}});
+						++idx;
+					}
+				}
+				return {{"results", results}, {"count", (int)results.size()}};
+			}
+			else if (action == "clear_cache") {
+				if (!ctx->sttService)
+					throw std::runtime_error("STT service not available");
+				int cleared = 0;
+				if (args.contains("indices")) {
+					auto indices = args["indices"].get<std::vector<int>>();
+					for (int idx : indices) {
+						auto* line = GetLineByIndex(ctx, idx);
+						if (!line) continue;
+						if (ctx->sttService->HasText(line)) {
+							ctx->sttService->InvalidateCache(line);
+							++cleared;
+						}
+					}
+				} else {
+					for (auto& line : ctx->ass->Events) {
+						if (ctx->sttService->HasText(&line))
+							++cleared;
+					}
+					ctx->sttService->Clear();
+				}
+				return {{"cleared", cleared}};
+			}
+			throw std::runtime_error("Unknown action: " + action);
+		}
+	};
+}
+
+// ============================================================
 // Registration
 // ============================================================
 
@@ -1286,7 +1457,8 @@ std::vector<ToolDef> RegisterAllTools() {
 		MakeTextAnalysisTool(),
 		MakeCleanupTool(),
 		MakeFileTool(),
-		MakeVideoTool()
+		MakeVideoTool(),
+		MakeSTTTool()
 	};
 }
 

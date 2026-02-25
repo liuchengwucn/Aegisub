@@ -49,7 +49,6 @@ class STTService {
 	/// Atomic counter for generating unique temp file names
 	static std::atomic<int> temp_file_counter;
 
-	void RecreateProvider();
 	void StoreInExtradata(AssDialogue *line, std::string const& text);
 
 public:
@@ -61,7 +60,13 @@ public:
 	void TranscribeAsync(AssDialogue *line, std::function<void(std::string const&)> on_complete);
 	void TranscribeAsync(AssDialogue *line, int start_ms, int end_ms, std::function<void(std::string const&)> on_complete);
 	void TranscribeWithLookahead(AssDialogue *line, std::function<void(std::string const&)> on_active_complete);
+
+	/// Synchronous transcription for MCP tool use. Blocks until complete.
+	std::string TranscribeSync(AssDialogue *line);
+	std::string TranscribeSync(AssDialogue *line, int start_ms, int end_ms);
+
 	void InvalidateCache(AssDialogue *line);
 	void LoadFromExtradata();
 	void Clear();
+	void RecreateProvider();
 };
