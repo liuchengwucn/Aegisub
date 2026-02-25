@@ -62,7 +62,10 @@ public:
 
 		part = curl_mime_addpart(mime);
 		curl_mime_name(part, "file");
-		curl_mime_filedata(part, wav_path.c_str());
+		// Use ShortName to get an ASCII-safe 8.3 path on Windows for libcurl,
+		// which does not support Unicode narrow-string paths on Windows.
+		// On non-Windows platforms ShortName is a no-op.
+		curl_mime_filedata(part, agi::fs::ShortName(agi::fs::path(wav_path)).c_str());
 
 		part = curl_mime_addpart(mime);
 		curl_mime_name(part, "model");
@@ -245,13 +248,15 @@ void STTService::TranscribeAsync(AssDialogue *line, int start_ms, int end_ms, st
 
 	agi::dispatch::Background().Async([=, this]() {
 		// Export audio clip to temp WAV with unique filename to avoid conflicts
-		auto temp_dir = std::filesystem::temp_directory_path();
+		// Use agi::fs::path to ensure UTF-8 string() on all platforms, avoiding
+		// Windows codepage conversion errors when the temp directory path contains
+		// non-ASCII characters (e.g. a Chinese Windows username).
+		agi::fs::path temp_dir(std::filesystem::temp_directory_path());
 		int file_seq = temp_file_counter.fetch_add(1);
-		auto temp_path = temp_dir / ("aegisub_stt_" + std::to_string(line_id) + "_" + std::to_string(file_seq) + ".wav");
-		agi::fs::path wav_path(temp_path.string());
+		agi::fs::path temp_path = temp_dir / ("aegisub_stt_" + std::to_string(line_id) + "_" + std::to_string(file_seq) + ".wav");
 
 		try {
-			agi::SaveAudioClip(*audio_provider, wav_path, start_ms, end_ms);
+			agi::SaveAudioClip(*audio_provider, temp_path, start_ms, end_ms);
 		} catch (std::exception const& e) {
 			LOG_E("stt") << "Failed to export audio: " << e.what();
 			std::lock_guard<std::mutex> lock(mutex);
@@ -262,7 +267,7 @@ void STTService::TranscribeAsync(AssDialogue *line, int start_ms, int end_ms, st
 			return;
 		}
 
-		std::string result = provider->Transcribe(temp_path.string());
+		std::string result = provider->Transcribe(temp_path.string()); // UTF-8 via agi::fs::path
 
 		// Clean up temp file
 		try { std::filesystem::remove(temp_path); } catch (...) {}
