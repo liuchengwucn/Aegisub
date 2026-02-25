@@ -1306,7 +1306,8 @@ static ToolDef MakeSTTTool() {
 		{"api_key", {{"type", "string"}, {"description", "API key (for set_config)"}}},
 		{"model", {{"type", "string"}, {"description", "Model name (for set_config)"}}},
 		{"prompt", {{"type", "string"}, {"description", "Transcription prompt (for set_config)"}}},
-		{"lookahead_lines", {{"type", "integer"}, {"description", "Lookahead line count (for set_config)"}}}
+		{"lookahead_lines", {{"type", "integer"}, {"description", "Lookahead line count (for set_config)"}}},
+		{"http_proxy", {{"type", "string"}, {"description", "HTTP proxy URL, empty to disable (for set_config)"}}}
 	}}, {"required", json::array({"action"})}};
 	def.run_on_main_thread = false; // transcribe_audio involves long HTTP calls
 	def.handler = [](const json& args, agi::Context* ctx) -> json {
@@ -1483,6 +1484,7 @@ static ToolDef MakeSTTTool() {
 					{"language", OPT_GET("Automation/Speech to Text/Language")->GetString()},
 					{"prompt", OPT_GET("Automation/Speech to Text/Prompt")->GetString()},
 					{"lookahead_lines", OPT_GET("Automation/Speech to Text/Lookahead Lines")->GetInt()},
+					{"http_proxy", OPT_GET("Automation/Speech to Text/HTTP Proxy")->GetString()},
 					{"has_audio", ctx->project->AudioProvider() != nullptr}
 				};
 			}
@@ -1515,6 +1517,10 @@ static ToolDef MakeSTTTool() {
 				if (args.contains("lookahead_lines")) {
 					OPT_SET("Automation/Speech to Text/Lookahead Lines")->SetInt(args["lookahead_lines"]);
 					updated["lookahead_lines"] = args["lookahead_lines"];
+				}
+				if (args.contains("http_proxy")) {
+					OPT_SET("Automation/Speech to Text/HTTP Proxy")->SetString(args["http_proxy"]);
+					updated["http_proxy"] = args["http_proxy"];
 				}
 				if (updated.empty())
 					throw std::runtime_error("No config fields provided");
@@ -1691,7 +1697,8 @@ static ToolDef MakeAudioLLMTool() {
 		{"provider", {{"type", "string"}, {"enum", {"gemini", "openai"}}, {"description", "LLM provider (for set_config)"}}},
 		{"api_key", {{"type", "string"}, {"description", "API key (for set_config)"}}},
 		{"model", {{"type", "string"}, {"description", "Model name (for set_config)"}}},
-		{"base_url", {{"type", "string"}, {"description", "API base URL (for set_config)"}}}
+		{"base_url", {{"type", "string"}, {"description", "API base URL (for set_config)"}}},
+		{"http_proxy", {{"type", "string"}, {"description", "HTTP proxy URL, empty to disable (for set_config)"}}}
 	}}, {"required", json::array({"action"})}};
 	def.run_on_main_thread = false; // HTTP calls can be long; dispatch to GUI thread internally
 	def.handler = [](const json& args, agi::Context* ctx) -> json {
@@ -1706,6 +1713,7 @@ static ToolDef MakeAudioLLMTool() {
 					{"api_key_set", !api_key.empty()},
 					{"model", OPT_GET("Automation/Audio LLM/Model")->GetString()},
 					{"base_url", OPT_GET("Automation/Audio LLM/Base URL")->GetString()},
+					{"http_proxy", OPT_GET("Automation/Audio LLM/HTTP Proxy")->GetString()},
 					{"has_audio", ctx->project->AudioProvider() != nullptr}
 				};
 			});
@@ -1729,6 +1737,10 @@ static ToolDef MakeAudioLLMTool() {
 				if (args.contains("base_url")) {
 					OPT_SET("Automation/Audio LLM/Base URL")->SetString(args["base_url"]);
 					updated["base_url"] = args["base_url"];
+				}
+				if (args.contains("http_proxy")) {
+					OPT_SET("Automation/Audio LLM/HTTP Proxy")->SetString(args["http_proxy"]);
+					updated["http_proxy"] = args["http_proxy"];
 				}
 			});
 			if (updated.empty())

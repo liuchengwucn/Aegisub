@@ -95,6 +95,10 @@ public:
 		curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
 		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
+		std::string proxy = OPT_GET("Automation/Speech to Text/HTTP Proxy")->GetString();
+		if (!proxy.empty())
+			curl_easy_setopt(curl, CURLOPT_PROXY, proxy.c_str());
+
 		std::string response;
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_cb);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);

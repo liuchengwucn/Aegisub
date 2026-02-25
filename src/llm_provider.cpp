@@ -32,7 +32,8 @@ static size_t curl_write_cb(char *ptr, size_t size, size_t nmemb, std::string *s
 /// Helper to perform an HTTP POST with JSON body and return the response
 static std::string HttpPostJson(const std::string& url,
                                 const std::string& body,
-                                const std::string& auth_header) {
+                                const std::string& auth_header,
+                                const std::string& proxy = "") {
 	CURL *curl = curl_easy_init();
 	if (!curl) return "";
 
@@ -45,6 +46,9 @@ static std::string HttpPostJson(const std::string& url,
 	curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, body.c_str());
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L);  // 5 minute timeout for large audio
+
+	if (!proxy.empty())
+		curl_easy_setopt(curl, CURLOPT_PROXY, proxy.c_str());
 
 	LOG_D("llm") << "POST " << url.substr(0, 80) << "... body_size=" << body.size();
 
@@ -114,7 +118,8 @@ public:
 			};
 		}
 
-		std::string response_str = HttpPostJson(url, body.dump(), "");
+		std::string proxy = OPT_GET("Automation/Audio LLM/HTTP Proxy")->GetString();
+		std::string response_str = HttpPostJson(url, body.dump(), "", proxy);
 		if (response_str.empty())
 			return {"", false, "Empty response from Gemini API"};
 
@@ -211,7 +216,8 @@ public:
 		};
 
 		std::string auth = "Authorization: Bearer " + api_key;
-		std::string response_str = HttpPostJson(url, body.dump(), auth);
+		std::string proxy = OPT_GET("Automation/Audio LLM/HTTP Proxy")->GetString();
+		std::string response_str = HttpPostJson(url, body.dump(), auth, proxy);
 		if (response_str.empty())
 			return {"", false, "Empty response from OpenAI API"};
 

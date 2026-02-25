@@ -99,6 +99,7 @@
 		"Audio LLM" : {
 			"API Key" : "",
 			"Base URL" : "https://generativelanguage.googleapis.com/v1beta",
+			"HTTP Proxy" : "",
 			"Model" : "gemini-2.5-flash",
 			"Provider" : "gemini"
 		},
@@ -106,6 +107,7 @@
 			"API Key" : "",
 			"Base URL" : "https://api.openai.com/v1",
 			"Enabled" : false,
+			"HTTP Proxy" : "",
 			"Language" : "Auto",
 			"Lookahead Lines" : 2,
 			"Model" : "whisper-1",

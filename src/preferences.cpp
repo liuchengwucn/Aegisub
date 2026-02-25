@@ -428,6 +428,9 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	// Lookahead Lines
 	p->OptionAdd(ai, _("Lookahead Lines"), "Automation/Speech to Text/Lookahead Lines", 0, 10);
 
+	// HTTP Proxy
+	p->OptionAdd(ai, _("HTTP Proxy"), "Automation/Speech to Text/HTTP Proxy");
+
 	// Audio LLM Settings (within AI section)
 	ai.sizer->Add(new wxStaticText(ai.box, -1, _("--- Audio LLM ---")), 1, wxALIGN_CENTRE_VERTICAL | wxTOP, 10);
 	p->CellSkip(ai);
@@ -451,6 +454,7 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	p->OptionAdd(ai, _("API Key"), "Automation/Audio LLM/API Key");
 	p->OptionAdd(ai, _("Model"), "Automation/Audio LLM/Model");
 	p->OptionAdd(ai, _("Base URL"), "Automation/Audio LLM/Base URL");
+	p->OptionAdd(ai, _("HTTP Proxy"), "Automation/Audio LLM/HTTP Proxy");
 
 	p->SetSizerAndFit(p->sizer);
 }
