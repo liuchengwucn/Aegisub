@@ -360,6 +360,10 @@ void Automation(wxTreebook *book, Preferences *parent) {
 	// AI Settings section
 	auto ai = p->PageSizer(_("AI"));
 
+	// Speech to Text
+	ai.sizer->Add(new wxStaticText(ai.box, -1, _("--- Speech to Text ---")), 1, wxALIGN_CENTRE_VERTICAL);
+	p->CellSkip(ai);
+
 	// Speech to Text Enabled
 	p->OptionAdd(ai, _("Enable Speech to Text"), "Automation/Speech to Text/Enabled");
 	p->CellSkip(ai);
@@ -423,6 +427,30 @@ void Automation(wxTreebook *book, Preferences *parent) {
 
 	// Lookahead Lines
 	p->OptionAdd(ai, _("Lookahead Lines"), "Automation/Speech to Text/Lookahead Lines", 0, 10);
+
+	// Audio LLM Settings (within AI section)
+	ai.sizer->Add(new wxStaticText(ai.box, -1, _("--- Audio LLM ---")), 1, wxALIGN_CENTRE_VERTICAL | wxTOP, 10);
+	p->CellSkip(ai);
+
+	// Provider dropdown
+	const wxString providers[] = {"gemini", "openai"};
+	wxArrayString provider_choice(2, providers);
+	auto provider_cb = new wxComboBox(ai.box, -1, wxEmptyString, wxDefaultPosition, wxDefaultSize, provider_choice, wxCB_READONLY | wxCB_DROPDOWN);
+	wxString cur_provider = to_wx(OPT_GET("Automation/Audio LLM/Provider")->GetString());
+	int psel = provider_choice.Index(cur_provider);
+	provider_cb->SetSelection(psel != wxNOT_FOUND ? psel : 0);
+	provider_cb->Bind(wxEVT_COMBOBOX, [parent, provider_choice](wxCommandEvent& evt) {
+		evt.Skip();
+		parent->SetOption(std::make_unique<agi::OptionValueString>(
+			"Automation/Audio LLM/Provider", from_wx(provider_choice[evt.GetInt()])));
+	});
+	ai.sizer->Add(new wxStaticText(ai.box, -1, _("Provider")), 1, wxALIGN_CENTRE_VERTICAL);
+	ai.sizer->Add(provider_cb, wxSizerFlags().Expand());
+	parent->AddChangeableOption("Automation/Audio LLM/Provider");
+
+	p->OptionAdd(ai, _("API Key"), "Automation/Audio LLM/API Key");
+	p->OptionAdd(ai, _("Model"), "Automation/Audio LLM/Model");
+	p->OptionAdd(ai, _("Base URL"), "Automation/Audio LLM/Base URL");
 
 	p->SetSizerAndFit(p->sizer);
 }

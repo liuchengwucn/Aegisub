@@ -22,6 +22,7 @@
 #include "search_replace_engine.h"
 #include "selection_controller.h"
 #include "stt_service.h"
+#include "llm_provider.h"
 #include "subs_controller.h"
 #include "subtitle_format.h"
 #include "video_controller.h"
@@ -32,6 +33,8 @@
 #include <libaegisub/audio/provider.h>
 #include <libaegisub/color.h>
 #include <libaegisub/character_count.h>
+#include <libaegisub/dispatch.h>
+#include <libaegisub/fs.h>
 #include <libaegisub/vfr.h>
 
 #include <wx/image.h>
@@ -45,6 +48,9 @@
 #include <set>
 #include <sstream>
 #include <vector>
+
+#include <curl/curl.h>
+#include <filesystem>
 
 namespace mcp {
 
@@ -1277,34 +1283,198 @@ static ToolDef MakeVideoTool() {
 // ============================================================
 
 static ToolDef MakeSTTTool() {
-	return {
-		"stt",
+	ToolDef def;
+	def.name = "stt";
+	def.description =
 		"Speech-to-text operations.\n"
 		"Actions:\n"
 		"- get_config: Get STT configuration status and settings\n"
 		"- set_config: Update STT settings (all fields optional)\n"
 		"- transcribe: Transcribe lines by index (uses cache if available)\n"
+		"- transcribe_audio: Transcribe a time range and auto-generate subtitle lines with timestamps\n"
 		"- get_cache: Get cached transcription results\n"
-		"- clear_cache: Clear transcription cache",
-		{{"type", "object"}, {"properties", {
-			{"action", {{"type", "string"}, {"enum", {"get_config", "set_config", "transcribe", "get_cache", "clear_cache"}},
-						{"description", "Operation to perform"}}},
-			{"indices", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"description", "Line indices (for transcribe/get_cache/clear_cache)"}}},
-			{"enabled", {{"type", "boolean"}, {"description", "Enable/disable STT (for set_config)"}}},
-			{"base_url", {{"type", "string"}, {"description", "API base URL (for set_config)"}}},
-			{"api_key", {{"type", "string"}, {"description", "API key (for set_config)"}}},
-			{"model", {{"type", "string"}, {"description", "Model name (for set_config)"}}},
-			{"language", {{"type", "string"}, {"description", "Language code or 'Auto' (for set_config)"}}},
-			{"prompt", {{"type", "string"}, {"description", "Transcription prompt (for set_config)"}}},
-			{"lookahead_lines", {{"type", "integer"}, {"description", "Lookahead line count (for set_config)"}}}
-		}}, {"required", json::array({"action"})}},
-		[](const json& args, agi::Context* ctx) -> json {
+		"- clear_cache: Clear transcription cache";
+	def.input_schema = {{"type", "object"}, {"properties", {
+		{"action", {{"type", "string"}, {"enum", {"get_config", "set_config", "transcribe", "transcribe_audio", "get_cache", "clear_cache"}},
+					{"description", "Operation to perform"}}},
+		{"indices", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"description", "Line indices (for transcribe/get_cache/clear_cache)"}}},
+		{"start_ms", {{"type", "integer"}, {"description", "Audio range start in ms (for transcribe_audio)"}}},
+		{"end_ms", {{"type", "integer"}, {"description", "Audio range end in ms (for transcribe_audio)"}}},
+		{"language", {{"type", "string"}, {"description", "Language code override (for transcribe_audio)"}}},
+		{"enabled", {{"type", "boolean"}, {"description", "Enable/disable STT (for set_config)"}}},
+		{"base_url", {{"type", "string"}, {"description", "API base URL (for set_config)"}}},
+		{"api_key", {{"type", "string"}, {"description", "API key (for set_config)"}}},
+		{"model", {{"type", "string"}, {"description", "Model name (for set_config)"}}},
+		{"prompt", {{"type", "string"}, {"description", "Transcription prompt (for set_config)"}}},
+		{"lookahead_lines", {{"type", "integer"}, {"description", "Lookahead line count (for set_config)"}}}
+	}}, {"required", json::array({"action"})}};
+	def.run_on_main_thread = false; // transcribe_audio involves long HTTP calls
+	def.handler = [](const json& args, agi::Context* ctx) -> json {
+		std::string action = args["action"];
+
+		// transcribe_audio runs partly on HTTP thread (for the API call)
+		if (action == "transcribe_audio") {
+			if (!args.contains("start_ms") || !args.contains("end_ms"))
+				throw std::runtime_error("'start_ms' and 'end_ms' are required for transcribe_audio");
+
+			int start_ms = args["start_ms"];
+			int end_ms = args["end_ms"];
+			if (start_ms >= end_ms)
+				throw std::runtime_error("start_ms must be < end_ms");
+
+			// Step 1: Export audio to temp WAV on GUI thread
+			std::string wav_path;
+			std::string base_url, api_key, model, language, prompt;
+			std::exception_ptr eptr;
+
+			agi::dispatch::Main().Sync([&] {
+				try {
+					auto* provider = ctx->project->AudioProvider();
+					if (!provider) throw std::runtime_error("No audio loaded");
+
+					auto temp_dir = std::filesystem::temp_directory_path();
+					wav_path = (temp_dir / ("aegisub_stt_full_" + std::to_string(start_ms) + ".wav")).string();
+					agi::SaveAudioClip(*provider, agi::fs::path(wav_path), start_ms, end_ms);
+
+					base_url = OPT_GET("Automation/Speech to Text/Base URL")->GetString();
+					api_key = OPT_GET("Automation/Speech to Text/API Key")->GetString();
+					model = OPT_GET("Automation/Speech to Text/Model")->GetString();
+					language = OPT_GET("Automation/Speech to Text/Language")->GetString();
+					prompt = OPT_GET("Automation/Speech to Text/Prompt")->GetString();
+
+					// Allow language override from args
+					if (args.contains("language"))
+						language = args["language"].get<std::string>();
+				} catch (...) {
+					eptr = std::current_exception();
+				}
+			});
+			if (eptr) std::rethrow_exception(eptr);
+
+			if (api_key.empty() || base_url.empty())
+				throw std::runtime_error("STT API key or base URL not configured");
+
+			// Step 2: Call STT API with verbose_json on HTTP thread
+			CURL *curl = curl_easy_init();
+			if (!curl) throw std::runtime_error("Failed to initialize CURL");
+
+			std::string url = base_url + "/audio/transcriptions";
+
+			curl_mime *mime = curl_mime_init(curl);
+			curl_mimepart *part;
+
+			part = curl_mime_addpart(mime);
+			curl_mime_name(part, "file");
+			curl_mime_filedata(part, wav_path.c_str());
+
+			part = curl_mime_addpart(mime);
+			curl_mime_name(part, "model");
+			curl_mime_data(part, model.c_str(), CURL_ZERO_TERMINATED);
+
+			part = curl_mime_addpart(mime);
+			curl_mime_name(part, "response_format");
+			curl_mime_data(part, "verbose_json", CURL_ZERO_TERMINATED);
+
+			if (!language.empty() && language != "Auto") {
+				part = curl_mime_addpart(mime);
+				curl_mime_name(part, "language");
+				curl_mime_data(part, language.c_str(), CURL_ZERO_TERMINATED);
+			}
+
+			if (!prompt.empty()) {
+				part = curl_mime_addpart(mime);
+				curl_mime_name(part, "prompt");
+				curl_mime_data(part, prompt.c_str(), CURL_ZERO_TERMINATED);
+			}
+
+			struct curl_slist *headers = nullptr;
+			headers = curl_slist_append(headers, ("Authorization: Bearer " + api_key).c_str());
+
+			curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+			curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+			std::string response;
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, +[](char *ptr, size_t size, size_t nmemb, std::string *s) -> size_t {
+				s->append(ptr, size * nmemb);
+				return size * nmemb;
+			});
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
+			CURLcode res = curl_easy_perform(curl);
+			curl_slist_free_all(headers);
+			curl_mime_free(mime);
+			curl_easy_cleanup(curl);
+
+			// Clean up temp file
+			try { std::filesystem::remove(wav_path); } catch (...) {}
+
+			if (res != CURLE_OK)
+				throw std::runtime_error(std::string("CURL error: ") + curl_easy_strerror(res));
+
+			// Step 3: Parse response and insert lines on GUI thread
+			json resp;
+			try {
+				resp = json::parse(response);
+			} catch (...) {
+				throw std::runtime_error("Failed to parse STT API response as JSON");
+			}
+
+			if (!resp.contains("segments"))
+				throw std::runtime_error("STT API response missing 'segments' field. Response: " + response.substr(0, 500));
+
+			json result_lines = json::array();
+			int lines_created = 0;
+
+			agi::dispatch::Main().Sync([&] {
+				auto& segments = resp["segments"];
+				for (auto& seg : segments) {
+					double seg_start = seg.value("start", 0.0);
+					double seg_end = seg.value("end", 0.0);
+					std::string seg_text = seg.value("text", "");
+
+					// Trim leading/trailing whitespace
+					while (!seg_text.empty() && seg_text.front() == ' ') seg_text.erase(0, 1);
+					while (!seg_text.empty() && seg_text.back() == ' ') seg_text.pop_back();
+					if (seg_text.empty()) continue;
+
+					// Convert to absolute ms (segment times are relative to the audio clip)
+					int abs_start = start_ms + (int)(seg_start * 1000);
+					int abs_end = start_ms + (int)(seg_end * 1000);
+
+					auto line = new AssDialogue();
+					line->Start = abs_start;
+					line->End = abs_end;
+					line->Text = seg_text;
+
+					ctx->ass->Events.push_back(*line);
+
+					result_lines.push_back({
+						{"start_time", abs_start},
+						{"end_time", abs_end},
+						{"text", seg_text}
+					});
+					++lines_created;
+				}
+
+				if (lines_created > 0)
+					ctx->ass->Commit("transcribe audio", AssFile::COMMIT_DIAG_ADDREM | AssFile::COMMIT_DIAG_TEXT | AssFile::COMMIT_DIAG_TIME);
+			});
+
+			return {{"lines_created", lines_created}, {"lines", result_lines}};
+		}
+
+		// All other actions run entirely on GUI thread
+		json result;
+		std::exception_ptr eptr;
+		agi::dispatch::Main().Sync([&] {
+			try {
 			std::string action = args["action"];
 
 			if (action == "get_config") {
 				std::string api_key = OPT_GET("Automation/Speech to Text/API Key")->GetString();
 				std::string base_url = OPT_GET("Automation/Speech to Text/Base URL")->GetString();
-				return {
+				result = {
 					{"enabled", OPT_GET("Automation/Speech to Text/Enabled")->GetBool()},
 					{"configured", !api_key.empty() && !base_url.empty()},
 					{"base_url", base_url},
@@ -1350,7 +1520,7 @@ static ToolDef MakeSTTTool() {
 					throw std::runtime_error("No config fields provided");
 				if (ctx->sttService)
 					ctx->sttService->RecreateProvider();
-				return {{"updated", true}, {"fields", updated}};
+				result = {{"updated", true}, {"fields", updated}};
 			}
 			else if (action == "transcribe") {
 				auto indices = args.at("indices").get<std::vector<int>>();
@@ -1389,7 +1559,7 @@ static ToolDef MakeSTTTool() {
 						{"from_cache", from_cache}
 					});
 				}
-				return {{"results", results}};
+				result = {{"results", results}};
 			}
 			else if (action == "get_cache") {
 				if (!ctx->sttService)
@@ -1411,7 +1581,7 @@ static ToolDef MakeSTTTool() {
 						++idx;
 					}
 				}
-				return {{"results", results}, {"count", (int)results.size()}};
+				result = {{"results", results}, {"count", (int)results.size()}};
 			}
 			else if (action == "clear_cache") {
 				if (!ctx->sttService)
@@ -1434,11 +1604,201 @@ static ToolDef MakeSTTTool() {
 					}
 					ctx->sttService->Clear();
 				}
-				return {{"cleared", cleared}};
+				result = {{"cleared", cleared}};
 			}
-			throw std::runtime_error("Unknown action: " + action);
-		}
+			else {
+				throw std::runtime_error("Unknown action: " + action);
+			}
+			} catch (...) {
+				eptr = std::current_exception();
+			}
+		});
+		if (eptr) std::rethrow_exception(eptr);
+		return result;
 	};
+	return def;
+}
+
+// ============================================================
+// Tool 13: audio_llm — Multimodal LLM with audio understanding
+// ============================================================
+
+/// Build a base64-encoded WAV from audio provider for a given time range.
+/// Must be called on the GUI thread.
+static std::string BuildAudioBase64(agi::Context* ctx, int start_ms, int end_ms) {
+	auto* provider = ctx->project->AudioProvider();
+	if (!provider) throw std::runtime_error("No audio loaded");
+
+	int sample_rate = provider->GetSampleRate();
+	int channels = provider->GetChannels();
+	int bps = provider->GetBytesPerSample();
+	int64_t max_samples = provider->GetNumSamples();
+
+	int64_t start_sample = std::min(max_samples, ((int64_t)start_ms * sample_rate + 999) / 1000);
+	int64_t end_sample = std::min(max_samples, ((int64_t)end_ms * sample_rate + 999) / 1000);
+	int64_t num_samples = end_sample - start_sample;
+	if (num_samples <= 0) throw std::runtime_error("No audio samples in range");
+
+	size_t bpf = bps * channels;
+	size_t data_size = num_samples * bpf;
+	size_t wav_size = 44 + data_size;
+	std::vector<uint8_t> wav(wav_size);
+
+	auto w16 = [&](size_t o, int16_t v) { memcpy(&wav[o], &v, 2); };
+	auto w32 = [&](size_t o, int32_t v) { memcpy(&wav[o], &v, 4); };
+	memcpy(&wav[0], "RIFF", 4); w32(4, (int32_t)(wav_size - 8));
+	memcpy(&wav[8], "WAVE", 4);
+	memcpy(&wav[12], "fmt ", 4); w32(16, 16);
+	w16(20, 1); w16(22, (int16_t)channels);
+	w32(24, sample_rate); w32(28, sample_rate * channels * bps);
+	w16(32, (int16_t)(channels * bps)); w16(34, (int16_t)(bps * 8));
+	memcpy(&wav[36], "data", 4); w32(40, (int32_t)data_size);
+
+	const size_t spr = 65536 / bpf;
+	for (int64_t i = start_sample; i < end_sample; ) {
+		int64_t count = std::min((int64_t)spr, end_sample - i);
+		provider->GetAudio(&wav[44 + (i - start_sample) * bpf], i, count);
+		i += count;
+	}
+
+	return Base64Encode(wav.data(), wav.size());
+}
+
+static ToolDef MakeAudioLLMTool() {
+	ToolDef def;
+	def.name = "audio_llm";
+	def.description =
+		"Multimodal LLM with audio understanding.\n"
+		"Sends audio + text to a configurable LLM (Gemini, OpenAI GPT-4o, etc.) for processing.\n"
+		"\n"
+		"Example workflows:\n"
+		"- Proofread subtitles: Send audio + SRT text with a proofreading prompt to fix transcription\n"
+		"  errors (misheard words, punctuation, filler words) while preserving timestamps.\n"
+		"- Translate subtitles: Send audio + proofread SRT with a translation prompt. The LLM uses\n"
+		"  audio context (tone, emphasis) to produce natural translations in the target language.\n"
+		"\n"
+		"Actions:\n"
+		"- get_config: Get Audio LLM configuration and status\n"
+		"- set_config: Update Audio LLM settings (provider, api_key, model, base_url)\n"
+		"- call: Send audio range + text prompt to LLM, returns response text";
+	def.input_schema = {{"type", "object"}, {"properties", {
+		{"action", {{"type", "string"}, {"enum", {"get_config", "set_config", "call"}},
+					{"description", "Operation to perform"}}},
+		{"system_prompt", {{"type", "string"}, {"description", "System instruction for the LLM (for call)"}}},
+		{"text", {{"type", "string"}, {"description", "User text content, e.g. SRT subtitles (for call)"}}},
+		{"start_ms", {{"type", "integer"}, {"description", "Audio range start in ms (for call, optional — omit to send no audio)"}}},
+		{"end_ms", {{"type", "integer"}, {"description", "Audio range end in ms (for call)"}}},
+		{"provider", {{"type", "string"}, {"enum", {"gemini", "openai"}}, {"description", "LLM provider (for set_config)"}}},
+		{"api_key", {{"type", "string"}, {"description", "API key (for set_config)"}}},
+		{"model", {{"type", "string"}, {"description", "Model name (for set_config)"}}},
+		{"base_url", {{"type", "string"}, {"description", "API base URL (for set_config)"}}}
+	}}, {"required", json::array({"action"})}};
+	def.run_on_main_thread = false; // HTTP calls can be long; dispatch to GUI thread internally
+	def.handler = [](const json& args, agi::Context* ctx) -> json {
+		std::string action = args["action"];
+
+		if (action == "get_config") {
+			json result;
+			agi::dispatch::Main().Sync([&] {
+				std::string api_key = OPT_GET("Automation/Audio LLM/API Key")->GetString();
+				result = {
+					{"provider", OPT_GET("Automation/Audio LLM/Provider")->GetString()},
+					{"api_key_set", !api_key.empty()},
+					{"model", OPT_GET("Automation/Audio LLM/Model")->GetString()},
+					{"base_url", OPT_GET("Automation/Audio LLM/Base URL")->GetString()},
+					{"has_audio", ctx->project->AudioProvider() != nullptr}
+				};
+			});
+			return result;
+		}
+		else if (action == "set_config") {
+			json updated = json::object();
+			agi::dispatch::Main().Sync([&] {
+				if (args.contains("provider")) {
+					OPT_SET("Automation/Audio LLM/Provider")->SetString(args["provider"]);
+					updated["provider"] = args["provider"];
+				}
+				if (args.contains("api_key")) {
+					OPT_SET("Automation/Audio LLM/API Key")->SetString(args["api_key"]);
+					updated["api_key_set"] = true;
+				}
+				if (args.contains("model")) {
+					OPT_SET("Automation/Audio LLM/Model")->SetString(args["model"]);
+					updated["model"] = args["model"];
+				}
+				if (args.contains("base_url")) {
+					OPT_SET("Automation/Audio LLM/Base URL")->SetString(args["base_url"]);
+					updated["base_url"] = args["base_url"];
+				}
+			});
+			if (updated.empty())
+				throw std::runtime_error("No config fields provided");
+			return {{"updated", true}, {"fields", updated}};
+		}
+		else if (action == "call") {
+			if (!args.contains("system_prompt") || !args.contains("text"))
+				throw std::runtime_error("'system_prompt' and 'text' are required for call action");
+
+			std::string system_prompt = args["system_prompt"];
+			std::string text = args["text"];
+
+			// Build audio base64 on GUI thread if audio range is specified
+			std::string audio_b64;
+			int audio_duration_ms = 0;
+			bool has_audio = args.contains("start_ms") && args.contains("end_ms");
+
+			if (has_audio) {
+				int start_ms = args["start_ms"];
+				int end_ms = args["end_ms"];
+				if (start_ms >= end_ms)
+					throw std::runtime_error("start_ms must be < end_ms");
+				audio_duration_ms = end_ms - start_ms;
+				if (audio_duration_ms > 300000)
+					throw std::runtime_error("Maximum audio duration is 300 seconds (5 minutes). Split into smaller segments.");
+
+				std::exception_ptr eptr;
+				agi::dispatch::Main().Sync([&] {
+					try {
+						audio_b64 = BuildAudioBase64(ctx, start_ms, end_ms);
+					} catch (...) {
+						eptr = std::current_exception();
+					}
+				});
+				if (eptr) std::rethrow_exception(eptr);
+			}
+
+			// Create provider and call LLM on HTTP thread
+			std::string provider_name, model_name;
+			agi::dispatch::Main().Sync([&] {
+				provider_name = OPT_GET("Automation/Audio LLM/Provider")->GetString();
+				model_name = OPT_GET("Automation/Audio LLM/Model")->GetString();
+			});
+
+			auto provider = CreateLLMProvider();
+			if (!provider->IsConfigured())
+				throw std::runtime_error("Audio LLM is not configured. Set API key and base URL first.");
+
+			LLMRequest request;
+			request.system_prompt = system_prompt;
+			request.user_content = text;
+			request.audio_base64 = audio_b64;
+			request.audio_mime_type = "audio/wav";
+
+			LLMResponse response = provider->Call(request);
+
+			if (!response.success)
+				throw std::runtime_error("LLM call failed: " + response.error);
+
+			return {
+				{"response", response.text},
+				{"model", model_name},
+				{"provider", provider_name},
+				{"audio_duration_ms", audio_duration_ms}
+			};
+		}
+		throw std::runtime_error("Unknown action: " + action);
+	};
+	return def;
 }
 
 // ============================================================
@@ -1458,7 +1818,8 @@ std::vector<ToolDef> RegisterAllTools() {
 		MakeCleanupTool(),
 		MakeFileTool(),
 		MakeVideoTool(),
-		MakeSTTTool()
+		MakeSTTTool(),
+		MakeAudioLLMTool()
 	};
 }
 

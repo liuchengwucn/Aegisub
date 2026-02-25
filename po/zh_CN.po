@@ -7017,6 +7017,18 @@ msgstr "德语"
 msgid "Spanish"
 msgstr "西班牙语"
 
+#: ../src/preferences.cpp
+msgid "--- Speech to Text ---"
+msgstr "--- 语音转文字 ---"
+
+#: ../src/preferences.cpp
+msgid "--- Audio LLM ---"
+msgstr "--- 音频 LLM ---"
+
+#: ../src/preferences.cpp
+msgid "Provider"
+msgstr "服务商"
+
 #~ msgid "&Opaque box"
 #~ msgstr "不透明背景(&O)"
 

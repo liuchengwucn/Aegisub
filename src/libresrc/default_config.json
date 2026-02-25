@@ -96,6 +96,12 @@
 	"Automation" : {
 		"Autoreload Mode" : 1,
 		"Trace Level" : 3,
+		"Audio LLM" : {
+			"API Key" : "",
+			"Base URL" : "https://generativelanguage.googleapis.com/v1beta",
+			"Model" : "gemini-2.5-flash",
+			"Provider" : "gemini"
+		},
 		"Speech to Text" : {
 			"API Key" : "",
 			"Base URL" : "https://api.openai.com/v1",

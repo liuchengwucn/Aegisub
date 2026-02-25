@@ -160,6 +160,7 @@ aegisub_src = files(
     'visual_tool_scale.cpp',
     'visual_tool_vector_clip.cpp',
     'stt_service.cpp',
+    'llm_provider.cpp',
     'mcp/mcp_server.cpp',
     'mcp/mcp_tools.cpp',
 )

@@ -27,6 +27,7 @@ struct ToolDef {
 	std::string description;
 	json input_schema; // JSON Schema for parameters
 	std::function<json(const json& args, agi::Context* ctx)> handler;
+	bool run_on_main_thread = true; // If false, handler runs on HTTP thread (for long HTTP calls)
 };
 
 /// MCP Server that runs an HTTP endpoint for AI agents

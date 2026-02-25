@@ -189,17 +189,27 @@ public:
 		}
 
 		try {
-			// Execute tool handler on the GUI thread for thread safety
 			json tool_result;
 			std::exception_ptr eptr;
 
-			agi::dispatch::Main().Sync([&] {
+			if (it->second->run_on_main_thread) {
+				// Most tools run on GUI thread for thread safety
+				agi::dispatch::Main().Sync([&] {
+					try {
+						tool_result = it->second->handler(arguments, context);
+					} catch (...) {
+						eptr = std::current_exception();
+					}
+				});
+			} else {
+				// Long-running tools (e.g. HTTP API calls) run on HTTP thread;
+				// they dispatch to GUI thread internally as needed
 				try {
 					tool_result = it->second->handler(arguments, context);
 				} catch (...) {
 					eptr = std::current_exception();
 				}
-			});
+			}
 
 			if (eptr) std::rethrow_exception(eptr);
 
