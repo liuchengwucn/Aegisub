@@ -361,6 +361,10 @@ endif
 
 deps += subproject('luabins').get_variable('luabins_dep')
 
+# MCP server dependencies (header-only)
+deps += dependency('nlohmann_json')
+deps += dependency('cpp-httplib')
+
 dep_gl = dependency('gl', required: false)
 if not dep_gl.found()
     if host_machine.system() == 'windows'

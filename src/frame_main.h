@@ -37,6 +37,7 @@ class AudioBox;
 class VideoBox;
 namespace agi { class AudioProvider; }
 namespace agi { struct Context; class OptionValue; }
+namespace mcp { class McpServer; }
 
 class FrameMain : public wxFrame {
 	friend class AegisubApp;
@@ -72,6 +73,7 @@ class FrameMain : public wxFrame {
 
 	AudioBox *audioBox;      ///< The audio area
 	VideoBox *videoBox;      ///< The video area
+	std::unique_ptr<mcp::McpServer> mcpServer; ///< MCP server for AI agents
 
 	wxSizer *MainSizer;  ///< Arranges things from top to bottom in the window
 	wxSizer *TopSizer;   ///< Arranges video box and tool box from left to right

@@ -49,6 +49,7 @@
 #include "dialog_manager.h"
 #include "libresrc/libresrc.h"
 #include "main.h"
+#include "mcp/mcp_server.h"
 #include "options.h"
 #include "project.h"
 #include "subs_controller.h"
@@ -159,10 +160,16 @@ FrameMain::FrameMain()
 	Show();
 	SetDisplayMode(1, 1);
 
+	StartupLog("Start MCP server");
+	mcpServer = std::make_unique<mcp::McpServer>(context.get());
+	mcpServer->Start();
+
 	StartupLog("Leaving FrameMain constructor");
 }
 
 FrameMain::~FrameMain () {
+	if (mcpServer) mcpServer->Stop();
+
 	context->project->CloseAudio();
 	context->project->CloseVideo();
 
