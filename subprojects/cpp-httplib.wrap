@@ -4,7 +4,7 @@ source_url = https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.33.1.ta
 source_filename = cpp-httplib-0.33.1.tar.gz
 source_hash = 38fa32a54ebc8f5195777f36a3d57b82b13e3a74aa2490dbeeaac4b861eace16
 source_fallback_url = https://wrapdb.mesonbuild.com/v2/cpp-httplib_0.33.1-1/get_source/cpp-httplib-0.33.1.tar.gz
-wrapdb_version = 0.33.1-1
+patch_directory = cpp-httplib
 
 [provide]
 dependency_names = cpp-httplib
