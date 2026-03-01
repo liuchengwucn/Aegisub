@@ -694,6 +694,8 @@ void SubsEditBox::UpdateSTTText() {
 	std::string cached = c->sttService->GetCachedText(line);
 	if (!cached.empty()) {
 		stt_editor->ChangeValue(to_wx(cached));
+		// Still trigger lookahead even if current line is cached
+		c->sttService->TranscribeWithLookahead(line, [](std::string const&) {});
 		return;
 	}
 
