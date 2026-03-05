@@ -221,6 +221,9 @@
 		],
 		"am/stt/regenerate" : [
 			"Ctrl-Shift-R"
+		],
+		"am/stt/append" : [
+			"Ctrl-Shift-A"
 		]
 	},
 	"Styling Assistant" : {

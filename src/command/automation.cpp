@@ -31,6 +31,8 @@
 
 #include "command.h"
 
+#include "../ass_dialogue.h"
+#include "../ass_file.h"
 #include "../auto4_base.h"
 #include "../dialogs.h"
 #include "../frame_main.h"
@@ -126,6 +128,36 @@ struct stt_regenerate final : public Command {
 	}
 };
 
+struct stt_append final : public Command {
+	CMD_NAME("am/stt/append")
+	STR_MENU("&Append Speech to Text")
+	STR_DISP("Append Speech to Text")
+	STR_HELP("Append the speech-to-text transcription to the end of the current line text")
+
+	void operator()(agi::Context *c) override {
+		if (!c->sttService) return;
+
+		auto active = c->selectionController->GetActiveLine();
+		if (!active) return;
+
+		std::string cached = c->sttService->GetCachedText(active);
+		if (cached.empty()) {
+			c->frame->StatusTimeout(_("No STT result available for current line"));
+			return;
+		}
+
+		// Append to current text
+		std::string current_text = active->Text.get();
+		if (!current_text.empty() && !current_text.ends_with(' ') && !current_text.ends_with('\n'))
+			current_text += ' ';
+		current_text += cached;
+
+		active->Text = current_text;
+		c->ass->Commit(_("append STT result"), AssFile::COMMIT_DIAG_TEXT);
+		c->frame->StatusTimeout(_("STT result appended"));
+	}
+};
+
 }
 
 namespace cmd {
@@ -135,5 +167,6 @@ namespace cmd {
 		reg(std::make_unique<reload_all>());
 		reg(std::make_unique<reload_autoload>());
 		reg(std::make_unique<stt_regenerate>());
+		reg(std::make_unique<stt_append>());
 	}
 }

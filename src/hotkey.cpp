@@ -52,6 +52,11 @@ namespace {
 		{nullptr}
 	};
 
+	const char *added_hotkeys_stt_append[][3] = {
+		{"am/stt/append", "Default", "Ctrl-Shift-A"},
+		{nullptr}
+	};
+
 #ifdef __WXMAC__
 	const char *added_hotkeys_minimize[][3] = {
 		{"app/minimize", "Default", "Ctrl-M"},
@@ -131,6 +136,11 @@ void init() {
 	if (boost::find(migrations, "am/stt/regenerate") == end(migrations)) {
 		migrate_hotkeys(added_hotkeys_stt_regenerate);
 		migrations.emplace_back("am/stt/regenerate");
+	}
+
+	if (boost::find(migrations, "am/stt/append") == end(migrations)) {
+		migrate_hotkeys(added_hotkeys_stt_append);
+		migrations.emplace_back("am/stt/append");
 	}
 
 	OPT_SET("App/Hotkey Migrations")->SetListString(std::move(migrations));

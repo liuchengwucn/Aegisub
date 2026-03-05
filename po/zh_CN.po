@@ -6973,6 +6973,30 @@ msgstr "清除缓存并重新生成所选行的语音转文字结果"
 msgid "STT cache cleared, re-transcribing..."
 msgstr "语音转文字缓存已清除，正在重新转录..."
 
+#: ../src/command/automation.cpp:131
+msgid "&Append Speech to Text"
+msgstr "追加语音转文字(&A)"
+
+#: ../src/command/automation.cpp:132
+msgid "Append Speech to Text"
+msgstr "追加语音转文字"
+
+#: ../src/command/automation.cpp:133
+msgid "Append the speech-to-text transcription to the end of the current line text"
+msgstr "将语音转文字结果追加到当前行文本末尾"
+
+#: ../src/command/automation.cpp:141
+msgid "No STT result available for current line"
+msgstr "当前行没有可用的语音转文字结果"
+
+#: ../src/command/automation.cpp:151
+msgid "append STT result"
+msgstr "追加语音转文字结果"
+
+#: ../src/command/automation.cpp:152
+msgid "STT result appended"
+msgstr "语音转文字结果已追加"
+
 #: ../src/subs_edit_box.cpp:368 ../src/subs_edit_box.cpp:706
 msgid "Transcribing..."
 msgstr "转录中..."
