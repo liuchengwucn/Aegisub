@@ -495,6 +495,7 @@ public:
 		cm->AddCommand(cmd::get("am/meta"), this);
 		AppendSeparator();
 		cm->AddCommand(cmd::get("am/stt/regenerate"), this);
+		cm->AddCommand(cmd::get("am/stt/append"), this);
 		AppendSeparator();
 		Regenerate();
 	}

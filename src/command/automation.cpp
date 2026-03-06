@@ -132,29 +132,35 @@ struct stt_append final : public Command {
 	CMD_NAME("am/stt/append")
 	STR_MENU("&Append Speech to Text")
 	STR_DISP("Append Speech to Text")
-	STR_HELP("Append the speech-to-text transcription to the end of the current line text")
+	STR_HELP("Append the speech-to-text transcription to the end of selected lines")
 
 	void operator()(agi::Context *c) override {
 		if (!c->sttService) return;
 
-		auto active = c->selectionController->GetActiveLine();
-		if (!active) return;
+		auto const& sel = c->selectionController->GetSelectedSet();
+		if (sel.empty()) return;
 
-		std::string cached = c->sttService->GetCachedText(active);
-		if (cached.empty()) {
-			c->frame->StatusTimeout(_("No STT result available for current line"));
-			return;
+		int appended_count = 0;
+		for (auto line : sel) {
+			std::string cached = c->sttService->GetCachedText(line);
+			if (cached.empty()) continue;
+
+			// Append to current text
+			std::string current_text = line->Text.get();
+			if (!current_text.empty() && !current_text.ends_with(' ') && !current_text.ends_with('\n'))
+				current_text += ' ';
+			current_text += cached;
+
+			line->Text = current_text;
+			appended_count++;
 		}
 
-		// Append to current text
-		std::string current_text = active->Text.get();
-		if (!current_text.empty() && !current_text.ends_with(' ') && !current_text.ends_with('\n'))
-			current_text += ' ';
-		current_text += cached;
-
-		active->Text = current_text;
-		c->ass->Commit(_("append STT result"), AssFile::COMMIT_DIAG_TEXT);
-		c->frame->StatusTimeout(_("STT result appended"));
+		if (appended_count > 0) {
+			c->ass->Commit(_("append STT result"), AssFile::COMMIT_DIAG_TEXT);
+			c->frame->StatusTimeout(wxString::Format(_("STT result appended to %d line(s)"), appended_count));
+		} else {
+			c->frame->StatusTimeout(_("No STT result available for selected lines"));
+		}
 	}
 };
 

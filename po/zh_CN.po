@@ -6982,20 +6982,20 @@ msgid "Append Speech to Text"
 msgstr "追加语音转文字"
 
 #: ../src/command/automation.cpp:133
-msgid "Append the speech-to-text transcription to the end of the current line text"
-msgstr "将语音转文字结果追加到当前行文本末尾"
+msgid "Append the speech-to-text transcription to the end of selected lines"
+msgstr "将语音转文字结果追加到所选行文本末尾"
 
-#: ../src/command/automation.cpp:141
-msgid "No STT result available for current line"
-msgstr "当前行没有可用的语音转文字结果"
-
-#: ../src/command/automation.cpp:151
+#: ../src/command/automation.cpp:156
 msgid "append STT result"
 msgstr "追加语音转文字结果"
 
-#: ../src/command/automation.cpp:152
-msgid "STT result appended"
-msgstr "语音转文字结果已追加"
+#: ../src/command/automation.cpp:157
+msgid "STT result appended to %d line(s)"
+msgstr "语音转文字结果已追加到 %d 行"
+
+#: ../src/command/automation.cpp:159
+msgid "No STT result available for selected lines"
+msgstr "所选行没有可用的语音转文字结果"
 
 #: ../src/subs_edit_box.cpp:368 ../src/subs_edit_box.cpp:706
 msgid "Transcribing..."
