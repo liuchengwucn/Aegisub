@@ -8,11 +8,14 @@ Support is available on [Discord](https://discord.com/invite/AZaVyPr) or [IRC](i
 
 ## Fork Changes
 
-This fork adds whisper **Speech to Text (STT)** integration to Aegisub, allowing users to call external STT APIs directly from the subtitle editing workflow.
+This fork adds two major AI-powered features to Aegisub:
+
+1. **Speech to Text (STT)** integration for automatic transcription
+2. **MCP Server** for AI agent-driven subtitle editing workflows
 
 <img width="3456" height="974" alt="image" src="https://github.com/user-attachments/assets/56dc4906-61ba-4631-b9c7-bb7b61cfb9cc" />
 
-### Features
+### Speech to Text Features
 
 - **Inline STT panel**: When enabled, a split panel appears beside the edit box showing the transcription result for the selected subtitle line.
 - **Automatic transcription**: Selecting a subtitle line automatically sends its audio segment to the configured STT API and displays the result.
@@ -29,7 +32,7 @@ The STT system uses an abstract `STTProvider` interface, making it extensible to
 - **OpenAI Compatible** (default): Works with OpenAI's Audio Transcriptions API, or any compatible endpoint (local whisper.cpp servers, Azure OpenAI, etc.). Supports models like `whisper-1`, `gpt-4o-transcribe`, and others.
 - Future providers (Vosk, Azure Speech Service, etc.) can be added by implementing the `STTProvider` interface.
 
-### Configuration
+### STT Configuration
 
 Settings are available in `Preferences > Automation > AI`:
 
@@ -40,8 +43,73 @@ Settings are available in `Preferences > Automation > AI`:
 | API Key | Authentication key for the STT API |
 | Model | Model name (default: `whisper-1`) |
 | Prompt | Optional prompt to guide transcription style/terminology |
-| Language | Language hint: Auto, zh, en, ja |
+| Language | Language hint: Auto, zh, en, ja, ko, fr, de, es, ru |
 | Lookahead Lines | Number of lines to pre-transcribe ahead (0-10, default: 2) |
+| HTTP Proxy | Optional HTTP proxy URL (e.g., `http://127.0.0.1:7897`) |
+
+### MCP Server
+
+The MCP (Model Context Protocol) Server provides a comprehensive HTTP API for AI agents to interact with Aegisub programmatically. It enables automated subtitle editing workflows powered by LLMs like Claude, GPT-4, or Gemini.
+
+#### Starting the MCP Server
+
+The server starts automatically when Aegisub launches and listens on port **6274** by default. You can verify it's running by checking the console output or accessing `http://localhost:6274/health`.
+
+#### Available Tools
+
+The MCP server exposes 13 tools for AI-driven subtitle editing:
+
+| Tool | Description |
+|------|-------------|
+| **project** | Project & metadata operations: get info, set script info, load media, resample resolution |
+| **styles** | Style management: list, create, update styles |
+| **lines** | Line operations: get (with pagination/filtering), insert, update, delete, merge |
+| **timing** | Timeline operations: shift times, snap to keyframes, make continuous, add lead in/out, generate from text |
+| **selection** | Selection management: get/set selected lines and active line |
+| **audio** | Audio operations: get peak levels, export audio segments as base64 WAV |
+| **tags** | ASS tag operations: parse tags, strip tags, parse/set karaoke timing |
+| **text_analysis** | Text analysis: calculate rendered text size, get line length, validate quality (overlap, duration, gaps) |
+| **cleanup** | Cleanup operations: recombine overlaps, merge identical lines |
+| **file** | File operations: save, export to various formats (SRT, SSA, TXT), undo, get raw ASS content |
+| **video** | Video operations: get frames as base64 PNG, convert time/frame numbers, get keyframes |
+| **stt** | Speech-to-text: get/set config, transcribe lines, transcribe audio ranges with auto-timing, manage cache |
+| **audio_llm** | Multimodal LLM with audio understanding: send audio + text to LLMs (Gemini, GPT-4o) for proofreading, translation, or custom processing |
+
+#### API Endpoints
+
+- `GET /health` - Health check
+- `GET /tools` - List all available tools with schemas
+- `POST /tools/{tool_name}` - Execute a tool with JSON parameters
+
+#### Example Workflows
+
+**Automated Transcription & Proofreading:**
+1. Use `stt.transcribe_audio` to generate initial subtitles from audio
+2. Use `audio_llm` to proofread transcriptions against audio, fixing misheard words and punctuation
+3. Use `lines.update` to apply corrections
+
+**AI-Assisted Translation:**
+1. Use `lines.get` to retrieve source subtitles
+2. Use `audio_llm` with translation prompt to translate while preserving timing
+3. Use `lines.update` to apply translations
+
+**Quality Control:**
+1. Use `text_analysis.validate` to detect overlaps, duration issues, or gaps
+2. Use `cleanup.recombine_overlaps` to fix timing conflicts
+3. Use `timing.make_continuous` to remove gaps
+
+#### Audio LLM Configuration
+
+Settings for the `audio_llm` tool are in `Preferences > Automation > AI`:
+
+| Setting | Description |
+|---------|-------------|
+| Enable Audio LLM | Toggle the feature on/off |
+| Provider | LLM provider: Gemini or OpenAI |
+| API Base URL | API endpoint (Gemini: `https://generativelanguage.googleapis.com`, OpenAI: `https://api.openai.com/v1`) |
+| API Key | Authentication key |
+| Model | Model name (e.g., `gemini-2.0-flash-exp`, `gpt-4o-audio-preview`) |
+| HTTP Proxy | Optional HTTP proxy URL |
 
 ## Building Aegisub
 
