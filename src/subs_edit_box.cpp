@@ -214,6 +214,7 @@ SubsEditBox::SubsEditBox(wxWindow *parent, agi::Context *context)
 
 	// Start unsplit (STT panel hidden), will be shown when audio + API key available
 	edit_splitter->Initialize(edit_ctrl);
+	stt_editor->Hide();
 
 	secondary_editor = new wxTextCtrl(this, -1, "", wxDefaultPosition, FromDIP(wxSize(300,50)), wxBORDER_SUNKEN | wxTE_MULTILINE | wxTE_READONLY);
 
