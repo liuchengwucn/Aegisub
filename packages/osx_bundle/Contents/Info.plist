@@ -48,6 +48,10 @@
 		<string>MacOSX</string>
 	</array>
 
+	<!-- Minimum macOS version required -->
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+
     <!-- Displayed in the 'Get Info' context menu dialogue -->
     <key>CFBundleGetInfoString</key>
     <string>aegisub version @PLIST_VERSION@ built on @PLIST_BUILD_DATE@ https://aegisub.org/</string>
